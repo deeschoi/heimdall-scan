@@ -1,0 +1,62 @@
+{
+  "_comment": "Ground truth for VAmPI (vulnerable=1), confirmed by hand against the running container on 2026-09-12. Only rows personally reproduced are must_detect:true so recall stays honest. Match key = check|METHOD|path.",
+  "target": "VAmPI",
+  "source": "https://github.com/erev0s/VAmPI",
+  "expected": [
+    {
+      "id": "vampi-sqli-user-by-name",
+      "check": "sqli",
+      "method": "GET",
+      "path": "/users/v1/{username}",
+      "cwe": "CWE-89",
+      "owasp_api": "API8:2023",
+      "wstg": "WSTG-INPV-05",
+      "must_detect": true,
+      "note": "GET /users/v1/admin' returns sqlalchemy/sqlite3 OperationalError with the raw SQL."
+    },
+    {
+      "id": "vampi-exposure-debug",
+      "check": "exposure",
+      "method": "GET",
+      "path": "/users/v1/_debug",
+      "cwe": "CWE-200",
+      "owasp_api": "API3:2023",
+      "wstg": "WSTG-ATHZ-04",
+      "must_detect": true,
+      "note": "Debug endpoint returns every user's cleartext password."
+    },
+    {
+      "id": "vampi-massassign-register-admin",
+      "check": "mass_assignment",
+      "method": "POST",
+      "path": "/users/v1/register",
+      "cwe": "CWE-915",
+      "owasp_api": "API6:2023",
+      "wstg": "WSTG-BUSL-08",
+      "must_detect": true,
+      "note": "register accepts admin:true; the created principal comes back admin in /users/v1/_debug."
+    },
+    {
+      "id": "vampi-bola-book-secret",
+      "check": "bola",
+      "method": "GET",
+      "path": "/books/v1/{book_title}",
+      "cwe": "CWE-639",
+      "owasp_api": "API1:2023",
+      "wstg": "WSTG-ATHZ-04",
+      "must_detect": true,
+      "note": "Any authenticated user can read another user's book secret; docstring claims owner-only."
+    },
+    {
+      "id": "vampi-jwt-weak-secret",
+      "check": "jwt",
+      "method": "POST",
+      "path": "(login)",
+      "cwe": "CWE-347",
+      "owasp_api": "API2:2023",
+      "wstg": "WSTG-SESS-10",
+      "must_detect": true,
+      "note": "VAmPI signs JWTs with a hardcoded HMAC secret present in payloads/jwt-secrets.txt; oedipus verifies the target's own token signature against the wordlist offline. Not toggled by vulnerable=0, so excluded from the safe-target FP control."
+    }
+  ]
+}

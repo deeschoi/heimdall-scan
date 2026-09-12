@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+build/
+dist/
+
+# Scan artifacts (reports can embed auth tokens — never commit)
+.tmp/
+*.sarif
+eval-*.json
+scan-*.json
+report.md
+
+# OS / editor
+.DS_Store

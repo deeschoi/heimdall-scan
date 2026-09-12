@@ -1,0 +1,56 @@
+name: eval
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Unit tests (no live targets)
+        run: pytest -q -p no:cacheprovider tests --ignore=tests/test_vampi_live.py
+
+  detection-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Boot benchmark targets
+        run: |
+          docker compose -f benchmarks/compose.yml up -d vampi-vuln vampi-safe
+          # wait for readiness, then seed both DBs
+          for p in 5001 5002; do
+            for i in $(seq 1 30); do
+              curl -sf "http://127.0.0.1:$p/" >/dev/null && break || sleep 2
+            done
+            curl -sf "http://127.0.0.1:$p/createdb" >/dev/null || true
+          done
+
+      - name: Eval VAmPI (gate on recall + false positives)
+        run: |
+          oedipus eval vampi --format json | tee eval-vampi.json
+          oedipus eval vampi --min-recall 1.0 --max-fp 0
+
+      - name: Produce SARIF for Code Scanning
+        if: always()
+        run: oedipus scan --suite vampi --format sarif --out oedipus.sarif || true
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: oedipus.sarif
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f benchmarks/compose.yml down -v

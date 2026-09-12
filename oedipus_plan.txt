@@ -1,0 +1,12 @@
+## 3. Vulnerable App + Automated Pentest/SAST Pipeline
+ 
+**What you'd actually build:** Two parts — (a) a small deliberately-vulnerable app you write yourself (not a copy of DVWA/Juice Shop, since originality matters for a resume piece), and (b) a scanner that automatically finds the vulnerabilities you planted.
+ 
+**Technical path:**
+- Write a small FastAPI or Flask app with intentionally seeded flaws: SQL injection, broken auth, SSRF (you have direct experience hardening this in Sphinx — flip it here), IDOR, insecure deserialization
+- For SAST: integrate Semgrep with custom rules targeting your specific vulnerable patterns, or write your own AST-based Python scanner using the `ast` module
+- For DAST: write a script that crawls the app and fuzzes inputs (even a lightweight custom fuzzer beats "I ran OWASP ZAP and took a screenshot")
+- Score findings by CVSS-style severity and exploitability
+- Wire it into GitHub Actions so it runs automatically on every push — this signals CI/CD and DevSecOps fluency, a specific and valuable keyword cluster
+ 
+**Why this one's valuable:** Your current portfolio is entirely defensive/analytical (scoring, triaging, classifying). This is the one project here that shows you understand vulnerabilities from the attacker's side, which "security software engineer" roles specifically probe for — they want people who can write secure code, not just detect insecure code.

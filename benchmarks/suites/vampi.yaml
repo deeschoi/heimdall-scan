@@ -1,0 +1,63 @@
+# VAmPI — primary API benchmark for Oedipus.
+#
+# Two containers are expected to be running (see benchmarks/compose.yml):
+#   vampi-vuln  -> :5001  (vulnerable=1)   the scored target
+#   vampi-safe  -> :5002  (vulnerable=0)   must produce ZERO findings
+#
+# Ground truth lives in benchmarks/expected/vampi.json and was confirmed by
+# hand against the running container. `oedipus eval vampi` scores against it.
+
+name: vampi
+target: http://127.0.0.1:5001
+safe_target: http://127.0.0.1:5002
+openapi: http://127.0.0.1:5001/openapi.json
+expected: ../expected/vampi.json
+payloads_dir: ../payloads
+
+checks: [sqli, exposure, mass_assignment, bola, jwt]
+
+# /createdb reseeds (and wipes) the DB; keep crawl-based checks away from it.
+exclude:
+  - /createdb
+
+# The subset of checks that VAmPI's `vulnerable=0` flag actually turns off.
+# These must produce ZERO findings on safe_target. (exposure and jwt are NOT
+# toggled by VAmPI — the debug endpoint and weak HMAC secret exist in both
+# modes — so they are excluded from the false-positive control.)
+safe_checks: [sqli, mass_assignment, bola]
+
+# Two identities so BOLA has a victim and an attacker. VAmPI needs GET /createdb
+# once to seed data; do that before eval (make bench-seed).
+auth:
+  user_a:
+    type: login
+    register: { path: /users/v1/register, json: { username: oed_user_a, password: pw_a_123, email: oed_a@example.com } }
+    login:    { path: /users/v1/login,    json: { username: oed_user_a, password: pw_a_123 } }
+    token_field: auth_token
+  user_b:
+    type: login
+    register: { path: /users/v1/register, json: { username: oed_user_b, password: pw_b_123, email: oed_b@example.com } }
+    login:    { path: /users/v1/login,    json: { username: oed_user_b, password: pw_b_123 } }
+    token_field: auth_token
+
+hints:
+  # BOLA: user_a owns a book carrying a canary; user_b must not be able to read it.
+  bola:
+    - create: { path: /books/v1, method: POST, as: user_a,
+                json: { book_title: oedipus_bola_book, secret: "OEDIPUS_CANARY_9f21a" } }
+      read:   { path: /books/v1/oedipus_bola_book, method: GET, as: user_b,
+                path_template: "/books/v1/{book_title}" }
+      canary: "OEDIPUS_CANARY_9f21a"
+
+  # Mass assignment: register honors a client-supplied admin flag.
+  mass_assignment:
+    - create:  { path: /users/v1/register, method: POST,
+                 base: { username: "__RAND__", password: "pw123", email: "ma@example.com" },
+                 escalate: { admin: true } }
+      confirm: { path: /users/v1/_debug, method: GET,
+                 match_field: username, privileged_field: admin, privileged_value: true }
+
+  # JWT: try alg=none against a protected endpoint; weak-secret runs offline.
+  jwt:
+    identity: user_a
+    protected: { path: /me, method: GET }

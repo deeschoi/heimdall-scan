@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oedipus"
+version = "0.1.0"
+description = "A DAST CLI for API authz bugs: every finding is a deterministic, replayable check."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "dee" }]
+dependencies = [
+    "httpx>=0.27",
+    "PyYAML>=6.0",
+    "click>=8.1",
+    "PyJWT>=2.8",
+    "rich>=13.7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-httpx>=0.30", "respx>=0.21"]
+
+[project.scripts]
+oedipus = "oedipus.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,35 @@
+# Oedipus benchmark targets.
+#
+# These mirror the containers already running on this host so `oedipus eval`
+# has a reproducible way to bring them up on a fresh machine / in CI.
+#
+#   docker compose -f benchmarks/compose.yml up -d
+#
+# VAmPI is run twice: vulnerable=1 (scored) and vulnerable=0 (false-positive
+# control). crAPI has its own large compose at crAPI-main/deploy/docker.
+services:
+  vampi-vuln:
+    image: erev0s/vampi:latest
+    container_name: vampi-vuln
+    environment:
+      - vulnerable=1
+      - tokentimetolive=300
+    ports:
+      - "5001:5000"
+
+  vampi-safe:
+    image: erev0s/vampi:latest
+    container_name: vampi-safe
+    environment:
+      - vulnerable=0
+      - tokentimetolive=300
+    ports:
+      - "5002:5000"
+
+  # Optional breadth/demo target (CTF-style; used as a stretch suite, not a
+  # resume metric). Comment out if you don't need it.
+  juice-shop:
+    image: bkimminich/juice-shop:latest
+    container_name: juice-shop
+    ports:
+      - "3000:3000"

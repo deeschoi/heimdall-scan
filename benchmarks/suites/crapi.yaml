@@ -1,0 +1,51 @@
+# crAPI — second, harder suite (realistic multi-tenant microservice API).
+#
+# The full crAPI stack is expected on http://127.0.0.1:8888 (crapi-web).
+# Its OpenAPI spec ships in the repo: crAPI-main/openapi-spec/crapi-openapi-spec.json
+#
+# STATUS: scaffolded. crAPI's signup uses an email/OTP flow (MailHog on :8025),
+# so the two-identity auth below must be finished by hand before the BOLA/SSRF
+# rows in expected/crapi.json are flipped to must_detect:true. Everything else
+# (crawl, checks, eval wiring) already works; this is a fill-in-auth task.
+
+name: crapi
+target: http://127.0.0.1:8888
+openapi: ../../crAPI-main/openapi-spec/crapi-openapi-spec.json
+expected: ../expected/crapi.json
+payloads_dir: ../payloads
+
+checks: [sqli, exposure, bola, ssrf, jwt]
+
+# TODO(dee): complete the OTP-based signup for two customers, then paste their
+# bearer tokens here (type: bearer) or wire a login step (type: login).
+# MailHog UI at http://127.0.0.1:8025 shows the OTP emails.
+auth:
+  user_a:
+    type: bearer
+    token: "PASTE_CUSTOMER_A_JWT"
+  user_b:
+    type: bearer
+    token: "PASTE_CUSTOMER_B_JWT"
+
+hints:
+  # Well-documented crAPI BOLA: another customer's vehicle location by UUID.
+  # Fill in a real vehicle UUID owned by user_a and confirm user_b can read it.
+  bola:
+    - read: { path: "/identity/api/v2/vehicle/PASTE_VEHICLE_UUID_A/location",
+              method: GET, as: user_b,
+              path_template: "/identity/api/v2/vehicle/{vehicleId}/location" }
+      canary: "PASTE_A_UNIQUE_VALUE_FROM_A_RESPONSE"
+
+  # crAPI SSRF: the mechanic "contact" endpoint fetches a client-supplied URL.
+  ssrf:
+    - path: /workshop/api/merchant/contact_mechanic
+      method: POST
+      param: mechanic_api
+      location: body
+      as: user_a
+      canary: "http://169.254.169.254/latest/meta-data/"
+      match: "ami-id"
+
+  jwt:
+    identity: user_a
+    protected: { path: /identity/api/v2/user/dashboard, method: GET }

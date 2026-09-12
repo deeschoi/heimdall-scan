@@ -1,0 +1,40 @@
+{
+  "_comment": "crAPI ground truth is a SCAFFOLD. crAPI needs an OTP signup (MailHog :8025) to obtain two customer tokens; until that auth is wired in suites/crapi.yaml and each row is reproduced by hand, every row is must_detect:false so it never inflates recall. These endpoints/CWEs come from crAPI's documented challenge list, not yet from a local reproduction.",
+  "target": "crAPI",
+  "source": "https://github.com/OWASP/crAPI/blob/main/docs/challenges.md",
+  "expected": [
+    {
+      "id": "crapi-bola-vehicle-location",
+      "check": "bola",
+      "method": "GET",
+      "path": "/identity/api/v2/vehicle/{vehicleId}/location",
+      "cwe": "CWE-639",
+      "owasp_api": "API1:2023",
+      "wstg": "WSTG-ATHZ-04",
+      "must_detect": false,
+      "note": "Access another user's vehicle location by UUID. Confirm then flip to true."
+    },
+    {
+      "id": "crapi-ssrf-contact-mechanic",
+      "check": "ssrf",
+      "method": "POST",
+      "path": "/workshop/api/merchant/contact_mechanic",
+      "cwe": "CWE-918",
+      "owasp_api": "API7:2023",
+      "wstg": "WSTG-INPV-19",
+      "must_detect": false,
+      "note": "mechanic_api URL is fetched server-side. Needs a metadata mock or reflected canary to score."
+    },
+    {
+      "id": "crapi-bola-mechanic-reports",
+      "check": "bola",
+      "method": "GET",
+      "path": "/workshop/api/mechanic/mechanic_report",
+      "cwe": "CWE-639",
+      "owasp_api": "API1:2023",
+      "wstg": "WSTG-ATHZ-04",
+      "must_detect": false,
+      "note": "report_id is a sequential integer; enumerate across tenants."
+    }
+  ]
+}
