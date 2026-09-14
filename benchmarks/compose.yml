@@ -8,6 +8,26 @@
 # VAmPI is run twice: vulnerable=1 (scored) and vulnerable=0 (false-positive
 # control). crAPI has its own large compose at crAPI-main/deploy/docker.
 services:
+  # Oedipus' OWN target (this repo). Two builds: vulnerable (scored) and
+  # hardened (false-positive control). See vulnapp/ and suites/vulnapp.yaml.
+  vulnapp-vuln:
+    build:
+      context: ../vulnapp
+    container_name: vulnapp-vuln
+    environment:
+      - VULNAPP_SAFE=0
+    ports:
+      - "8000:8000"
+
+  vulnapp-safe:
+    build:
+      context: ../vulnapp
+    container_name: vulnapp-safe
+    environment:
+      - VULNAPP_SAFE=1
+    ports:
+      - "8001:8000"
+
   vampi-vuln:
     image: erev0s/vampi:latest
     container_name: vampi-vuln

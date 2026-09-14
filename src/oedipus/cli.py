@@ -36,7 +36,7 @@ SUITE_DIRS = [Path("benchmarks/suites"), Path.cwd() / "benchmarks" / "suites"]
 
 def _resolve_suite(name_or_path: str) -> Suite:
     p = Path(name_or_path)
-    if p.exists():
+    if p.is_file():
         return Suite.load(str(p))
     for d in SUITE_DIRS:
         cand = d / f"{name_or_path}.yaml"

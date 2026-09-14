@@ -1,0 +1,84 @@
+{
+  "_comment": "Ground truth for oedipus-vulnapp (VULNAPP_SAFE=0), the project's own target. Every row is a bug planted on purpose in vulnapp/app.py and reproduced against the running app. The hardened build (VULNAPP_SAFE=1) fixes all of them, so all checks are used for the safe-target false-positive control. Match key = check|METHOD|path.",
+  "target": "oedipus-vulnapp",
+  "source": "vulnapp/app.py (this repository)",
+  "expected": [
+    {
+      "id": "vulnapp-sqli-product-search",
+      "check": "sqli",
+      "method": "GET",
+      "path": "/api/products/search",
+      "cwe": "CWE-89",
+      "owasp_api": "API8:2023",
+      "wstg": "WSTG-INPV-05",
+      "must_detect": true,
+      "note": "GET /api/products/search?q=' returns sqlite3.OperationalError; q is string-concatenated into the LIKE clause. The parameterized /api/products/{id} lookalike stays silent."
+    },
+    {
+      "id": "vulnapp-exposure-debug-users",
+      "check": "exposure",
+      "method": "GET",
+      "path": "/api/debug/users",
+      "cwe": "CWE-200",
+      "owasp_api": "API3:2023",
+      "wstg": "WSTG-ATHZ-04",
+      "must_detect": true,
+      "note": "Debug dump serializes every user's cleartext password and api token."
+    },
+    {
+      "id": "vulnapp-massassign-register-admin",
+      "check": "mass_assignment",
+      "method": "POST",
+      "path": "/api/register",
+      "cwe": "CWE-915",
+      "owasp_api": "API6:2023",
+      "wstg": "WSTG-BUSL-08",
+      "must_detect": true,
+      "note": "register binds admin straight from the request body; the created principal comes back admin:true in /api/debug/users."
+    },
+    {
+      "id": "vulnapp-bola-note-secret",
+      "check": "bola",
+      "method": "GET",
+      "path": "/api/notes/{note_id}",
+      "cwe": "CWE-639",
+      "owasp_api": "API1:2023",
+      "wstg": "WSTG-ATHZ-04",
+      "must_detect": true,
+      "note": "user_b reads user_a's note (and its secret canary) with no object-level ownership check."
+    },
+    {
+      "id": "vulnapp-jwt-weak-secret",
+      "check": "jwt",
+      "method": "POST",
+      "path": "(login)",
+      "cwe": "CWE-347",
+      "owasp_api": "API2:2023",
+      "wstg": "WSTG-SESS-10",
+      "must_detect": true,
+      "note": "Tokens are HS256-signed with 'changeme', a line in payloads/jwt-secrets.txt; oedipus verifies the target's own token signature offline."
+    },
+    {
+      "id": "vulnapp-jwt-alg-none",
+      "check": "jwt",
+      "method": "GET",
+      "path": "/api/me",
+      "cwe": "CWE-347",
+      "owasp_api": "API2:2023",
+      "wstg": "WSTG-SESS-10",
+      "must_detect": true,
+      "note": "/api/me accepts an unsigned alg=none token (server decodes without verifying the signature)."
+    },
+    {
+      "id": "vulnapp-ssrf-url-preview",
+      "check": "ssrf",
+      "method": "POST",
+      "path": "/api/url-preview",
+      "cwe": "CWE-918",
+      "owasp_api": "API7:2023",
+      "wstg": "WSTG-INPV-19",
+      "must_detect": true,
+      "note": "url-preview fetches an attacker-controlled URL with no egress allowlist and reflects the body; pointed at the internal metadata mock it returns 'ami-id'. The /api/url-preview-safe lookalike (allowlist) stays silent."
+    }
+  ]
+}

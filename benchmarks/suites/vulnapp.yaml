@@ -1,0 +1,71 @@
+# oedipus-vulnapp — Oedipus' OWN deliberately-vulnerable target.
+#
+# Two builds are expected to be running (see benchmarks/compose.yml, or
+# `make vulnapp-up`):
+#   vulnapp-vuln  -> :8000  (VULNAPP_SAFE=0)  the scored target
+#   vulnapp-safe  -> :8001  (VULNAPP_SAFE=1)  hardened; must produce ZERO findings
+#
+# Every planted bug is mapped to a check oracle and frozen in
+# benchmarks/expected/vulnapp.json. Because we own the app, the hardened build
+# fixes ALL of them, so the entire check set is used for the false-positive
+# control (unlike VAmPI, whose vulnerable=0 only toggles some bugs).
+
+name: vulnapp
+target: http://127.0.0.1:8000
+safe_target: http://127.0.0.1:8001
+openapi: http://127.0.0.1:8000/openapi.json
+expected: ../expected/vulnapp.json
+payloads_dir: ../payloads
+
+checks: [sqli, exposure, mass_assignment, bola, jwt, ssrf]
+
+# Two identities (distinct owners) so BOLA has a victim and an attacker.
+auth:
+  user_a:
+    type: login
+    register: { path: /api/register, json: { username: oed_user_a, password: pw_a_123, email: a@acme.example } }
+    login:    { path: /api/login,    json: { username: oed_user_a, password: pw_a_123 }, token_field: token }
+  user_b:
+    type: login
+    register: { path: /api/register, json: { username: oed_user_b, password: pw_b_123, email: b@acme.example } }
+    login:    { path: /api/login,    json: { username: oed_user_b, password: pw_b_123 }, token_field: token }
+
+hints:
+  # BOLA: user_a owns a note carrying a canary; user_b must not be able to read it.
+  bola:
+    - create: { path: /api/notes, method: POST, as: user_a,
+                json: { id: oedipus_bola_note, title: q3-plan, body: internal,
+                        secret: "OEDIPUS_CANARY_ab12c" } }
+      read:   { path: /api/notes/oedipus_bola_note, method: GET, as: user_b,
+                path_template: "/api/notes/{note_id}" }
+      canary: "OEDIPUS_CANARY_ab12c"
+
+  # Mass assignment: register honors a client-supplied admin flag; confirm via
+  # the debug dump that the created principal is admin.
+  mass_assignment:
+    - create:  { path: /api/register, method: POST,
+                 base: { username: "__RAND__", password: "pw123", email: "ma@acme.example" },
+                 escalate: { admin: true } }
+      confirm: { path: /api/debug/users, method: GET,
+                 match_field: username, privileged_field: admin, privileged_value: true }
+
+  # JWT: weak HMAC secret (verified offline) + alg=none accepted on /api/me.
+  jwt:
+    identity: user_a
+    protected: { path: /api/me, method: GET }
+
+  # SSRF: the vulnerable preview fetches an internal metadata URL; the safe
+  # lookalike route must stay silent (allowlist), acting as a regression guard.
+  ssrf:
+    - path: /api/url-preview
+      method: POST
+      param: url
+      location: body
+      canary: "http://127.0.0.1:8000/internal/latest/meta-data/"
+      match: "ami-id"
+    - path: /api/url-preview-safe
+      method: POST
+      param: url
+      location: body
+      canary: "http://127.0.0.1:8000/internal/latest/meta-data/"
+      match: "ami-id"
