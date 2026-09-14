@@ -20,6 +20,10 @@ jobs:
 
   vulnapp-regression:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -48,13 +52,17 @@ jobs:
 
       - name: Upload SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: oedipus-vulnapp.sarif
           category: oedipus-vulnapp
 
   detection-regression:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -84,7 +92,7 @@ jobs:
 
       - name: Upload SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: oedipus.sarif
 
