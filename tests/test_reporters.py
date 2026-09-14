@@ -34,7 +34,9 @@ def test_sarif_shape_is_valid():
     assert result["level"] == "error"
     assert "partialFingerprints" in result
     loc = result["locations"][0]
-    assert "physicalLocation" not in loc
+    physical = loc["physicalLocation"]
+    assert physical["artifactLocation"]["uri"] == "oedipus-findings/sqli/get-users-v1-username.dast"
+    assert physical["region"]["startLine"] == 1
     logical = loc["logicalLocations"][0]
     assert logical["kind"] == "resource"
     assert logical["fullyQualifiedName"].startswith("http")

@@ -5,15 +5,25 @@ each finding becomes a ``result`` whose ``ruleId`` is the check id.
 
 DAST findings live at HTTP endpoints, not source files. GitHub Code Scanning
 rejects ``physicalLocation`` URIs whose scheme is ``http``/``https`` (checkout
-is ``file``), so locations are emitted as ``logicalLocations`` (kind=resource).
-The request URL stays in the message and properties.
+is ``file``), and its ingest API also *requires* a ``physicalLocation`` on
+every result — a location with only ``logicalLocations`` is rejected with
+"expected a physical location". So each result gets both: a synthetic
+repo-relative ``physicalLocation`` (satisfies ingest; no snippet is expected
+since the file doesn't exist) and a ``logicalLocations`` entry carrying the
+real endpoint identity. The request URL stays in the message and properties.
 """
 
 from __future__ import annotations
 
 import json
+import re
 
 from oedipus.models import Finding
+
+
+def _synthetic_artifact_uri(f: Finding) -> str:
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", f.path_template).strip("-").lower() or "root"
+    return f"oedipus-findings/{f.check_id}/{f.method.lower()}-{slug}.dast"
 
 SARIF_VERSION = "2.1.0"
 SCHEMA = "https://json.schemastore.org/sarif-2.1.0.json"
@@ -69,13 +79,17 @@ def _result(f: Finding) -> dict:
         },
         "locations": [
             {
+                "physicalLocation": {
+                    "artifactLocation": {"uri": _synthetic_artifact_uri(f)},
+                    "region": {"startLine": 1},
+                },
                 "logicalLocations": [
                     {
                         "name": f"{f.method} {f.path_template}",
                         "fullyQualifiedName": f.url,
                         "kind": "resource",
                     }
-                ]
+                ],
             }
         ],
         "partialFingerprints": {"oedipus/v1": f.fingerprint},
