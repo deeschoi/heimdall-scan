@@ -12,23 +12,44 @@ and checks a `vulnerable=0` control target produces zero findings.
 
 | Target | State | Result |
 |---|---|---|
+| **oedipus-vulnapp** (`:8000` vuln / `:8001` hardened) | this repo's OWN target ([`vulnapp/`](vulnapp/)) | precision 1.00 · recall 1.00 · F1 1.00 · 7/7 TP · 0 FP · 0 safe-FP |
 | **VAmPI** (`:5001` vuln / `:5002` safe) | fully wired + scored | precision 1.00 · recall 1.00 · F1 1.00 · 5/5 TP · 0 FP · 0 safe-FP |
 | **crAPI** (`:8888`) | scaffolded; needs OTP-signup auth wired in | ground truth unscored until reproduced |
 | **Juice Shop** (`:3000`) | optional breadth/demo target | not a scored suite |
 
+`oedipus-vulnapp` is a small multi-tenant notes SaaS (FastAPI + Jinja2/HTMX UI,
+`/openapi.json` contract) with six bugs planted on purpose — one per check — plus
+negative "lookalike" routes (parameterized SQL, allowlisted fetch) that must
+**not** fire. A hardened build (`VULNAPP_SAFE=1`) fixes every bug, so the whole
+check set is used for the zero-false-positive control.
+
 ## Install
 
 ```bash
-make install          # venv + editable install
+make install          # venv + editable install (includes the vulnapp extra)
 source .venv/bin/activate
 ```
 
-## Quickstart
+## Quickstart (the project's own target — no Docker required)
+
+```bash
+# start both builds locally
+PORT=8000 VULNAPP_SAFE=0 python -m vulnapp &   # vulnerable  -> http://127.0.0.1:8000
+PORT=8001 VULNAPP_SAFE=1 python -m vulnapp &   # hardened    -> http://127.0.0.1:8001
+
+oedipus list-checks                # what Oedipus detects (CWE/OWASP-API/WSTG/ASVS)
+oedipus eval vulnapp               # precision / recall / F1 + safe-target FP scan
+oedipus scan --suite vulnapp --format md
+```
+
+Open <http://127.0.0.1:8000> to see the app in a browser; Oedipus scans the
+`/openapi.json` contract, not the HTML. (Docker alternative: `make vulnapp-up`.)
+
+## Benchmarks (VAmPI)
 
 ```bash
 make bench-up         # docker compose: VAmPI vuln+safe (+ Juice Shop)
 make bench-seed       # VAmPI ships an empty DB; GET /createdb seeds it
-oedipus list-checks   # what Oedipus detects, with CWE/OWASP-API/WSTG/ASVS
 oedipus eval vampi    # precision / recall / F1 vs benchmarks/expected/vampi.json
 ```
 
@@ -63,9 +84,10 @@ oedipus explain o.json <fingerprint>                   # evidence for one findin
 
 ```
 src/oedipus/          scanner: models, http client, scope, crawler, auth, checks, report, eval
+vulnapp/              the project's OWN vulnerable target (FastAPI + Jinja2/HTMX, SAFE-mode toggle)
 benchmarks/           compose.yml, suites/*.yaml, expected/*.json, payloads/*.txt
-docs/                 training.md, threat-model.md, checks/*.md
-tests/                unit oracles + a live VAmPI regression test (auto-skips if down)
+docs/                 training.md, threat-model.md, vulnapp.md, checks/*.md
+tests/                unit oracles + live regressions (VAmPI + vulnapp; auto-skip if unavailable)
 .github/workflows/    eval.yml — boots targets, gates on recall/FP, uploads SARIF
 ```
 
