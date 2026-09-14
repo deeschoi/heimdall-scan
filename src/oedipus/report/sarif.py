@@ -1,8 +1,12 @@
 """SARIF 2.1.0 reporter for GitHub Code Scanning ingest.
 
 Each check becomes a ``rule`` (with CWE/OWASP/WSTG in properties + tags), and
-each finding becomes a ``result`` whose ``ruleId`` is the check id and whose
-location is the request URL. Verified against the OASIS SARIF 2.1.0 schema.
+each finding becomes a ``result`` whose ``ruleId`` is the check id.
+
+DAST findings live at HTTP endpoints, not source files. GitHub Code Scanning
+rejects ``physicalLocation`` URIs whose scheme is ``http``/``https`` (checkout
+is ``file``), so locations are emitted as ``logicalLocations`` (kind=resource).
+The request URL stays in the message and properties.
 """
 
 from __future__ import annotations
@@ -65,12 +69,21 @@ def _result(f: Finding) -> dict:
         },
         "locations": [
             {
-                "physicalLocation": {
-                    "artifactLocation": {"uri": f.url},
-                    "region": {"startLine": 1},
-                }
+                "logicalLocations": [
+                    {
+                        "name": f"{f.method} {f.path_template}",
+                        "fullyQualifiedName": f.url,
+                        "kind": "resource",
+                    }
+                ]
             }
         ],
         "partialFingerprints": {"oedipus/v1": f.fingerprint},
-        "properties": {"cvss_vector": f.cvss_vector, "severity": f.severity.value},
+        "properties": {
+            "cvss_vector": f.cvss_vector,
+            "severity": f.severity.value,
+            "url": f.url,
+            "method": f.method,
+            "path_template": f.path_template,
+        },
     }

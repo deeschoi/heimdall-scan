@@ -33,6 +33,12 @@ def test_sarif_shape_is_valid():
     assert result["ruleId"] == "sqli"
     assert result["level"] == "error"
     assert "partialFingerprints" in result
+    loc = result["locations"][0]
+    assert "physicalLocation" not in loc
+    logical = loc["logicalLocations"][0]
+    assert logical["kind"] == "resource"
+    assert logical["fullyQualifiedName"].startswith("http")
+    assert result["properties"]["url"].startswith("http")
 
 
 def test_json_report_summary():
