@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Acme Notes</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: -apple-system, system-ui, sans-serif; max-width: 900px;
+           margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+    header { display: flex; align-items: baseline; gap: 1rem; }
+    .mode { font-size: .8rem; padding: .1rem .5rem; border-radius: .5rem; }
+    .vuln { background: #fde2e1; color: #7a1c14; }
+    .safe { background: #e3f5e3; color: #14631a; }
+    section { border: 1px solid #8883; border-radius: .6rem; padding: 1rem; margin: 1rem 0; }
+    h2 { margin-top: 0; font-size: 1.05rem; }
+    input, button { font: inherit; padding: .4rem .6rem; }
+    table { border-collapse: collapse; width: 100%; }
+    td, th { text-align: left; padding: .3rem .5rem; border-bottom: 1px solid #8882; }
+    code { background: #8881; padding: .1rem .3rem; border-radius: .3rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Acme Notes</h1>
+    {% if safe %}
+      <span class="mode safe">hardened build</span>
+    {% else %}
+      <span class="mode vuln">vulnerable build</span>
+    {% endif %}
+  </header>
+  <p>A tiny multi-tenant notes SaaS used as Oedipus' own scan target.
+     Machine-readable contract at <code>/openapi.json</code>.</p>
+
+  <section>
+    <h2>Products</h2>
+    <form hx-get="/api/products/search" hx-target="#search-out" hx-swap="innerHTML">
+      <input name="q" placeholder="search products…" />
+      <button type="submit">Search</button>
+    </form>
+    <pre id="search-out"></pre>
+    <table>
+      <thead><tr><th>#</th><th>Name</th><th>Price</th></tr></thead>
+      <tbody>
+        {% for p in products %}
+        <tr><td>{{ p.id }}</td><td>{{ p.name }}</td><td>${{ '%.2f'|format(p.price) }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Notes</h2>
+    <div id="notes" hx-get="/ui/notes" hx-trigger="load" hx-swap="innerHTML">
+      loading…
+    </div>
+  </section>
+
+  <section>
+    <h2>URL preview</h2>
+    <form hx-post="/api/url-preview" hx-ext="json-enc" hx-target="#preview-out"
+          hx-swap="innerHTML">
+      <input name="url" placeholder="https://example.com" size="40" />
+      <button type="submit">Preview</button>
+    </form>
+    <pre id="preview-out"></pre>
+  </section>
+</body>
+</html>

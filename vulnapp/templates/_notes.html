@@ -1,0 +1,8 @@
+<table>
+  <thead><tr><th>Title</th><th>Owner</th><th>Tenant</th></tr></thead>
+  <tbody>
+    {% for n in notes %}
+    <tr><td>{{ n.title }}</td><td>{{ n.owner }}</td><td>{{ n.tenant }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
