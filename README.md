@@ -23,6 +23,88 @@ negative "lookalike" routes (parameterized SQL, allowlisted fetch) that must
 **not** fire. A hardened build (`VULNAPP_SAFE=1`) fixes every bug, so the whole
 check set is used for the zero-false-positive control.
 
+## Demo
+
+`list-checks` → `eval` (scored against frozen ground truth) → `scan` (the
+Markdown report), run against the project's own `vulnapp` target:
+
+```bash
+asciinema play docs/demo/oedipus-demo.cast   # recorded with docs/demo/record.sh
+```
+
+<details>
+<summary>Transcript (click to expand)</summary>
+
+```
+$ oedipus list-checks
+                                           Oedipus checks
+┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━┓
+┃ id              ┃ title                            ┃ CWE     ┃ OWASP API ┃ WSTG         ┃ ASVS   ┃
+┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━┩
+│ bola            │ Broken object level              │ CWE-639 │ API1:2023 │ WSTG-ATHZ-04 │ 4.2.1  │
+│                 │ authorization (IDOR)             │         │           │              │        │
+│ exposure        │ Excessive data exposure of       │ CWE-200 │ API3:2023 │ WSTG-ATHZ-04 │ 8.3.4  │
+│                 │ sensitive fields                 │         │           │              │        │
+│ jwt             │ Weak or forgeable JWT            │ CWE-347 │ API2:2023 │ WSTG-SESS-10 │ 3.5.3  │
+│ mass_assignment │ Mass assignment enables          │ CWE-915 │ API6:2023 │ WSTG-BUSL-08 │ 5.1.2  │
+│                 │ privilege escalation             │         │           │              │        │
+│ sqli            │ Error-based SQL injection        │ CWE-89  │ API8:2023 │ WSTG-INPV-05 │ 5.3.4  │
+│ ssrf            │ Server-side request forgery      │ CWE-918 │ API7:2023 │ WSTG-INPV-19 │ 12.6.1 │
+└─────────────────┴──────────────────────────────────┴─────────┴───────────┴──────────────┴────────┘
+
+$ oedipus eval vulnapp
+         eval: vulnapp
+┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┓
+┃ metric          ┃ value     ┃
+┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━┩
+│ precision       │ 1.000     │
+│ recall          │ 1.000     │
+│ f1              │ 1.000     │
+│ TP / FP / FN    │ 7 / 0 / 0 │
+│ safe-target FPs │ 0         │
+└─────────────────┴───────────┘
+
+$ oedipus scan --suite vulnapp --format md --out /tmp/oedipus-demo.md
+Wrote 7 findings to /tmp/oedipus-demo.md
+7 findings (critical=1, high=6)
+
+# Oedipus scan report
+
+**Target:** `http://127.0.0.1:8000`
+**Findings:** 7
+
+| Severity | Check | Endpoint | CWE | OWASP API | WSTG |
+|---|---|---|---|---|---|
+| CRITICAL | `jwt` | `GET /api/me` | CWE-347 | API2:2023 | WSTG-SESS-10 |
+| HIGH | `sqli` | `GET /api/products/search` | CWE-89 | API8:2023 | WSTG-INPV-05 |
+| HIGH | `exposure` | `GET /api/debug/users` | CWE-200 | API3:2023 | WSTG-ATHZ-04 |
+| HIGH | `mass_assignment` | `POST /api/register` | CWE-915 | API6:2023 | WSTG-BUSL-08 |
+| HIGH | `bola` | `GET /api/notes/{note_id}` | CWE-639 | API1:2023 | WSTG-ATHZ-04 |
+| HIGH | `jwt` | `POST (login)` | CWE-347 | API2:2023 | WSTG-SESS-10 |
+| HIGH | `ssrf` | `POST /api/url-preview` | CWE-918 | API7:2023 | WSTG-INPV-19 |
+
+## CRITICAL — JWT 'alg=none' accepted on a protected endpoint
+
+- **Check:** `jwt` (`95b0292b6b59`)
+- **Endpoint:** `GET /api/me`
+- **CWE:** CWE-347 · **OWASP API:** API2:2023 · **WSTG:** WSTG-SESS-10 · **ASVS:** 3.5.3
+- **CVSS 3.1:** `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`
+
+An unsigned token was accepted, allowing trivial impersonation.
+
+**Remediation:** Pin an allowlist of signing algorithms; reject 'none'.
+
+<details><summary>Evidence #1: alg=none token accepted (HTTP 200)</summary>
+
+...
+```
+
+</details>
+
+To re-record after a UI/output change: bring up `vulnapp` on `:8000`/`:8001`
+(see Quickstart below), then `./docs/demo/record.sh` on its own to preview,
+or wrap it with `asciinema rec` per the header comment in that script.
+
 ## Install
 
 ```bash
