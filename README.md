@@ -61,6 +61,7 @@ oedipus scan --suite vampi --format sarif --out o.sarif # GitHub Code Scanning
 oedipus scan --suite vampi --format json --out o.json  # machine / baseline
 oedipus replay o.json                                  # re-confirm each finding
 oedipus explain o.json <fingerprint>                   # evidence for one finding
+oedipus gate o.json --accepted-risk accepted-risk.yml --fail-on high
 ```
 
 ## Checks
@@ -88,7 +89,21 @@ vulnapp/              the project's OWN vulnerable target (FastAPI + Jinja2/HTMX
 benchmarks/           compose.yml, suites/*.yaml, expected/*.json, payloads/*.txt
 docs/                 training.md, threat-model.md, vulnapp.md, checks/*.md
 tests/                unit oracles + live regressions (VAmPI + vulnapp; auto-skip if unavailable)
-.github/workflows/    eval.yml — boots targets, gates on recall/FP, uploads SARIF
+.github/workflows/    ci.yml (pytest) + scan.yml (eval gate, SARIF, PR baseline, accepted-risk)
+accepted-risk.yml     finding fingerprint + owner + expiry; consumed by `oedipus gate`
+```
+
+## CI
+
+- **`.github/workflows/ci.yml`** — install deps, run `pytest` (unit + in-process vulnapp integration).
+- **`.github/workflows/scan.yml`** — `docker compose up` for vulnapp and VAmPI, `oedipus eval --min-recall 1.0 --max-fp 0`, upload SARIF to GitHub Code Scanning, then `oedipus gate --fail-on high`.
+- **PR-only** — download `main`'s last JSON report and pass it as `--baseline` so only **new** High+ findings fail the PR.
+- **`accepted-risk.yml`** — planted demo findings are tracked (fingerprint, owner, expiry) and suppressed from the fail-on gate until they expire. Code Scanning still gets the unfiltered SARIF.
+
+```bash
+oedipus scan --suite vulnapp --format json --out vulnapp.json
+oedipus gate vulnapp.json --accepted-risk accepted-risk.yml --fail-on high
+oedipus gate vulnapp.json --baseline prior.json --fail-on high   # PR delta
 ```
 
 ## Adding a benchmark

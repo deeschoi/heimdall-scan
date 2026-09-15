@@ -1,0 +1,157 @@
+name: scan
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: scan-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+jobs:
+  vulnapp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -e ".[dev,vulnapp]"
+
+      - name: Boot vulnapp (vulnerable :8000 + hardened :8001)
+        run: |
+          docker compose -f benchmarks/compose.yml up -d --build vulnapp-vuln vulnapp-safe
+          for p in 8000 8001; do
+            ok=0
+            for i in $(seq 1 60); do
+              if curl -sf "http://127.0.0.1:$p/healthz" >/dev/null; then
+                ok=1
+                break
+              fi
+              sleep 2
+            done
+            if [ "$ok" != 1 ]; then
+              echo "vulnapp not ready on :$p" >&2
+              docker compose -f benchmarks/compose.yml logs --no-color vulnapp-vuln vulnapp-safe || true
+              exit 1
+            fi
+          done
+
+      - name: Eval vulnapp (gate on full recall + zero false positives)
+        run: oedipus eval vulnapp --format json --min-recall 1.0 --max-fp 0 | tee eval-vulnapp.json
+
+      - name: Scan vulnapp (JSON report)
+        if: always()
+        run: oedipus scan --suite vulnapp --format json --out vulnapp.json
+
+      - name: Convert JSON to SARIF for Code Scanning
+        if: always() && hashFiles('vulnapp.json') != ''
+        run: oedipus gate vulnapp.json --format sarif --out report.sarif
+
+      - name: Upload SARIF
+        if: always() && hashFiles('report.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: report.sarif
+          category: oedipus-vulnapp
+
+      - name: Upload JSON baseline artifact
+        if: always() && hashFiles('vulnapp.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnapp-json
+          path: vulnapp.json
+          retention-days: 90
+
+      - name: Download main baseline (PRs)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p .baseline
+          RUN_ID=$(gh run list --repo "${{ github.repository }}" \
+            --branch main --workflow scan.yml --status success --limit 1 \
+            --json databaseId --jq '.[0].databaseId // empty')
+          if [ -z "$RUN_ID" ]; then
+            echo "No successful main scan yet; gating without a baseline."
+            exit 0
+          fi
+          gh run download "$RUN_ID" --repo "${{ github.repository }}" \
+            -n vulnapp-json -D .baseline
+
+      - name: Gate High+ (accepted-risk + optional PR baseline)
+        if: always() && hashFiles('vulnapp.json') != ''
+        run: |
+          extra=()
+          baseline=$(find .baseline -name 'vulnapp.json' -print -quit 2>/dev/null || true)
+          if [ -n "$baseline" ]; then
+            extra+=(--baseline "$baseline")
+          fi
+          oedipus gate vulnapp.json \
+            --accepted-risk accepted-risk.yml \
+            "${extra[@]}" \
+            --fail-on high
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f benchmarks/compose.yml down -v || true
+
+  vampi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -e ".[dev]"
+
+      - name: Boot VAmPI (vulnerable :5001 + safe :5002)
+        run: |
+          docker compose -f benchmarks/compose.yml up -d vampi-vuln vampi-safe
+          for p in 5001 5002; do
+            ok=0
+            for i in $(seq 1 30); do
+              if curl -sf "http://127.0.0.1:$p/" >/dev/null; then
+                ok=1
+                break
+              fi
+              sleep 2
+            done
+            if [ "$ok" != 1 ]; then
+              echo "VAmPI not ready on :$p" >&2
+              docker compose -f benchmarks/compose.yml logs --no-color vampi-vuln vampi-safe || true
+              exit 1
+            fi
+            curl -sf "http://127.0.0.1:$p/createdb" >/dev/null || true
+          done
+
+      - name: Eval VAmPI (gate on recall + false positives)
+        run: oedipus eval vampi --format json --min-recall 1.0 --max-fp 0 | tee eval-vampi.json
+
+      - name: Produce SARIF for Code Scanning
+        if: always()
+        run: oedipus scan --suite vampi --format sarif --out oedipus.sarif || true
+
+      - name: Upload SARIF
+        if: always() && hashFiles('oedipus.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: oedipus.sarif
+          category: oedipus-vampi
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f benchmarks/compose.yml down -v || true

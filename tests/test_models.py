@@ -23,6 +23,7 @@ def test_fingerprint_stable_and_keyed_on_endpoint():
     b = _finding(url="http://127.0.0.1:5001/books/v1/other")
     # Same check+method+path_template -> same fingerprint regardless of concrete url.
     assert a.fingerprint == b.fingerprint
+    assert a.fingerprint == Finding.fingerprint_key("bola", "GET", "/books/v1/{book_title}")
     c = _finding(method="POST")
     assert a.fingerprint != c.fingerprint
 

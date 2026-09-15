@@ -80,11 +80,15 @@ class Finding:
     evidence: list[Evidence] = field(default_factory=list)
     asvs: str = ""  # optional ASVS control id
 
+    @staticmethod
+    def fingerprint_key(check_id: str, method: str, path_template: str) -> str:
+        """Stable id used to de-duplicate, key baseline diffs, and match accepted-risk.yml."""
+        raw = f"{check_id}|{method.upper()}|{path_template}"
+        return hashlib.sha1(raw.encode()).hexdigest()[:12]
+
     @property
     def fingerprint(self) -> str:
-        """Stable id used to de-duplicate and to key baseline diffs."""
-        raw = f"{self.check_id}|{self.method.upper()}|{self.path_template}"
-        return hashlib.sha1(raw.encode()).hexdigest()[:12]
+        return self.fingerprint_key(self.check_id, self.method, self.path_template)
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)

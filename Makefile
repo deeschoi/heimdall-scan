@@ -1,5 +1,5 @@
 .PHONY: install bench-up bench-down bench-seed eval scan test lint clean \
-        vulnapp-up vulnapp-down eval-vulnapp scan-vulnapp
+        vulnapp-up vulnapp-down eval-vulnapp scan-vulnapp ci
 
 install:
 	python3 -m venv .venv && . .venv/bin/activate && pip install -e ".[dev,vulnapp]"
@@ -42,6 +42,10 @@ scan-vulnapp:
 
 test:
 	pytest -q
+
+# Same pytest invocation as .github/workflows/ci.yml (skips live VAmPI).
+ci:
+	pytest -q --ignore=tests/test_vampi_live.py
 
 clean:
 	rm -rf .tmp *.sarif eval-*.json

@@ -6,6 +6,7 @@ Commands:
   list-checks  show the registered checks and their metadata
   replay       re-confirm findings from a saved JSON report
   explain      print a finding's evidence and the matcher that fired
+  gate         filter a JSON report (accepted-risk + baseline) and fail-on severity
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ from oedipus.eval import evaluate
 from oedipus.http_client import HttpClient
 from oedipus.models import Finding, Severity
 from oedipus.report import render
+from oedipus.risk import RiskRegisterError, apply_filters, fail_on
 from oedipus.scope import Scope
 
 console = Console()
@@ -63,8 +65,9 @@ def main() -> None:
 @click.option("--unsafe", is_flag=True, help="Permit destructive HTTP methods (PUT/DELETE/PATCH).")
 @click.option("--rate-limit", default=20.0, help="Max requests/second.")
 @click.option("--baseline", type=click.Path(exists=True), help="Prior JSON report; only report NEW findings.")
-@click.option("--fail-on", type=click.Choice(["info", "low", "medium", "high", "critical"]), help="Exit 2 if any finding at/above this severity.")
-def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_public, unsafe, rate_limit, baseline, fail_on):
+@click.option("--accepted-risk", type=click.Path(exists=True), help="YAML register; drop non-expired accepted findings before reporting/fail-on.")
+@click.option("--fail-on", "fail_on_sev", type=click.Choice(["info", "low", "medium", "high", "critical"]), help="Exit 2 if any finding at/above this severity.")
+def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_public, unsafe, rate_limit, baseline, accepted_risk, fail_on_sev):
     """Scan a target and emit findings (JSON / SARIF / Markdown)."""
     load_builtin_checks()
     if suite_name:
@@ -86,8 +89,7 @@ def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_p
             allow_public=allow_public, unsafe=unsafe, rate_limit=rate_limit,
         )
 
-    if baseline:
-        findings = _diff_baseline(findings, Path(baseline))
+    findings = _apply_filters(findings, accepted_risk=accepted_risk, baseline=baseline)
 
     report = render("md" if fmt == "markdown" else fmt, findings, target=target or "")
     if out:
@@ -97,10 +99,8 @@ def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_p
         console.print(report) if fmt in ("md", "markdown") else click.echo(report)
 
     _print_summary(findings, target)
-    if fail_on:
-        threshold = Severity(fail_on).rank
-        if any(f.severity.rank >= threshold for f in findings):
-            sys.exit(2)
+    if fail_on_sev and fail_on(findings, fail_on_sev):
+        sys.exit(2)
 
 
 @main.command(name="eval")
@@ -183,6 +183,35 @@ def explain(report, fingerprint):
     console.print_json(json.dumps(match))
 
 
+@main.command(name="gate")
+@click.argument("report", type=click.Path(exists=True))
+@click.option("--accepted-risk", type=click.Path(exists=True), help="YAML register; drop non-expired accepted findings.")
+@click.option("--baseline", type=click.Path(exists=True), help="Prior JSON report; only keep NEW findings.")
+@click.option("--fail-on", "fail_on_sev", type=click.Choice(["info", "low", "medium", "high", "critical"]), help="Exit 2 if any remaining finding is at/above this severity.")
+@click.option("--format", "fmt", default="json", type=click.Choice(["json", "sarif", "md", "markdown"]))
+@click.option("--out", type=click.Path(), help="Write the filtered report. Default: stdout.")
+def gate_cmd(report, accepted_risk, baseline, fail_on_sev, fmt, out):
+    """Filter a JSON report through accepted-risk and/or a baseline, then optionally fail-on."""
+    doc = json.loads(Path(report).read_text(encoding="utf-8"))
+    rows = doc.get("findings", doc if isinstance(doc, list) else [])
+    if not isinstance(rows, list):
+        raise click.ClickException(f"{report}: expected a findings list")
+    findings = [_finding_from_dict(r) for r in rows]
+    target = doc.get("target", "") if isinstance(doc, dict) else ""
+    findings = _apply_filters(findings, accepted_risk=accepted_risk, baseline=baseline)
+
+    rendered = render("md" if fmt == "markdown" else fmt, findings, target=target)
+    if out:
+        Path(out).write_text(rendered, encoding="utf-8")
+        err.print(f"[green]Wrote {len(findings)} findings to {out}[/green]")
+    else:
+        console.print(rendered) if fmt in ("md", "markdown") else click.echo(rendered)
+
+    _print_summary(findings, target or None)
+    if fail_on_sev and fail_on(findings, fail_on_sev):
+        sys.exit(2)
+
+
 # --- helpers ----------------------------------------------------------
 
 def _print_summary(findings: list[Finding], target: Optional[str]) -> None:
@@ -213,11 +242,21 @@ def _print_eval(r) -> None:
             err.print(f"  - {u}")
 
 
-def _diff_baseline(findings: list[Finding], baseline_path: Path) -> list[Finding]:
-    doc = json.loads(baseline_path.read_text(encoding="utf-8"))
-    rows = doc.get("findings", doc if isinstance(doc, list) else [])
-    prior = {r.get("fingerprint") for r in rows}
-    return [f for f in findings if f.fingerprint not in prior]
+def _apply_filters(findings: list[Finding], *, accepted_risk, baseline) -> list[Finding]:
+    try:
+        findings, stats = apply_filters(
+            findings, accepted_risk=accepted_risk, baseline=baseline
+        )
+    except RiskRegisterError as exc:
+        raise click.ClickException(str(exc)) from exc
+    if stats.suppressed:
+        err.print(f"[dim]Suppressed {len(stats.suppressed)} accepted-risk finding(s)[/dim]")
+    if stats.expired_hits:
+        err.print(
+            f"[yellow]{len(stats.expired_hits)} finding(s) match expired accepted-risk "
+            "entries; not suppressed[/yellow]"
+        )
+    return findings
 
 
 def _finding_from_dict(d: dict) -> Finding:

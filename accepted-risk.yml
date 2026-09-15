@@ -1,0 +1,46 @@
+# Accepted-risk register for Oedipus CI.
+#
+# Schema (each row):
+#   fingerprint  12-char hex Finding.fingerprint
+#                sha1("{check_id}|{METHOD}|{path_template}")[:12]
+#   owner        person accountable for the risk
+#   expiry       YYYY-MM-DD (inclusive). After this date the finding is
+#                no longer suppressed and --fail-on will fail CI again.
+#   reason       why this finding is tracked instead of fixed
+#
+# Consumed by `oedipus scan --accepted-risk` and `oedipus gate`.
+# Expired rows stay in the file as history; they do not suppress.
+
+version: 1
+accepted:
+  # Planted bugs in oedipus-vulnapp (the demo target). These are supposed to
+  # fire; GitHub Code Scanning still gets the full unfiltered SARIF. The gate
+  # uses this list so --fail-on high only trips on *new* High+ findings.
+  - fingerprint: "d1461dd77a48"
+    owner: dee
+    expiry: 2027-03-15
+    reason: "Planted SQLi on GET /api/products/search in oedipus-vulnapp (demo target)."
+  - fingerprint: "0b6f2160cee7"
+    owner: dee
+    expiry: 2027-03-15
+    reason: "Planted debug dump on GET /api/debug/users in oedipus-vulnapp (demo target)."
+  - fingerprint: "e53b0abcab5c"
+    owner: dee
+    expiry: 2027-03-15
+    reason: "Planted mass assignment on POST /api/register in oedipus-vulnapp (demo target)."
+  - fingerprint: "70ebdcb9f647"
+    owner: dee
+    expiry: 2027-03-15
+    reason: "Planted BOLA on GET /api/notes/{note_id} in oedipus-vulnapp (demo target)."
+  - fingerprint: "10d043a768b7"
+    owner: dee
+    expiry: 2027-03-15
+    reason: "Planted weak JWT HMAC secret in oedipus-vulnapp (demo target)."
+  - fingerprint: "95b0292b6b59"
+    owner: dee
+    expiry: 2027-03-15
+    reason: "Planted JWT alg=none on GET /api/me in oedipus-vulnapp (demo target)."
+  - fingerprint: "4b7a63f34a1d"
+    owner: dee
+    expiry: 2027-03-15
+    reason: "Planted SSRF on POST /api/url-preview in oedipus-vulnapp (demo target)."
