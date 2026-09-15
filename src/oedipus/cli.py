@@ -7,6 +7,8 @@ Commands:
   replay       re-confirm findings from a saved JSON report
   explain      print a finding's evidence and the matcher that fired
   gate         filter a JSON report (accepted-risk + baseline) and fail-on severity
+  sast         run Semgrep's Oedipus rules over source, emit findings in the same schema
+  correlate    join a SAST report and a DAST report on (method, path, CWE)
 """
 
 from __future__ import annotations
@@ -145,9 +147,7 @@ def list_checks_cmd():
 def replay(report, scope_hosts, allow_public):
     """Re-issue each finding's evidence request and re-run its matcher."""
     load_builtin_checks()
-    doc = json.loads(Path(report).read_text(encoding="utf-8"))
-    rows = doc.get("findings", doc if isinstance(doc, list) else [])
-    findings = [_finding_from_dict(r) for r in rows]
+    findings = _load_findings(report)
     scope = Scope.from_targets([f.url for f in findings], allow_public=allow_public)
     for h in scope_hosts:
         scope.allow_hosts.add(h)
@@ -181,6 +181,59 @@ def explain(report, fingerprint):
     if not match:
         raise click.ClickException(f"No finding with fingerprint {fingerprint!r}")
     console.print_json(json.dumps(match))
+
+
+@main.command(name="sast")
+@click.option("--rules", "rules_dir", default="semgrep-rules", type=click.Path(exists=True), help="Directory of Semgrep rule YAML files.")
+@click.option("--src", "src_dir", default=".", type=click.Path(exists=True), help="Source directory to scan.")
+@click.option("--format", "fmt", default="md", type=click.Choice(["json", "sarif", "md", "markdown"]))
+@click.option("--out", type=click.Path(), help="Write report to a file instead of stdout.")
+@click.option("--fail-on", "fail_on_sev", type=click.Choice(["info", "low", "medium", "high", "critical"]), help="Exit 2 if any finding at/above this severity.")
+def sast_cmd(rules_dir, src_dir, fmt, out, fail_on_sev):
+    """Run Semgrep's Oedipus rules over source and emit findings (same schema as scan)."""
+    from oedipus.sast import SastError, scan_source
+
+    try:
+        findings = scan_source(rules_dir, src_dir)
+    except SastError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    report = render("md" if fmt == "markdown" else fmt, findings, target=src_dir)
+    if out:
+        Path(out).write_text(report, encoding="utf-8")
+        err.print(f"[green]Wrote {len(findings)} findings to {out}[/green]")
+    else:
+        console.print(report) if fmt in ("md", "markdown") else click.echo(report)
+
+    _print_summary(findings, src_dir)
+    if fail_on_sev and fail_on(findings, fail_on_sev):
+        sys.exit(2)
+
+
+@main.command(name="correlate")
+@click.option("--dast", "dast_report", type=click.Path(exists=True), required=True, help="JSON report from `oedipus scan`.")
+@click.option("--sast", "sast_report", type=click.Path(exists=True), required=True, help="JSON report from `oedipus sast`.")
+@click.option("--format", "fmt", default="md", type=click.Choice(["json", "md", "markdown"]))
+@click.option("--out", type=click.Path(), help="Write the correlation report to a file instead of stdout.")
+def correlate_cmd(dast_report, sast_report, fmt, out):
+    """Join a SAST report and a DAST report on (method, path, CWE)."""
+    from oedipus.correlate import correlate, render as render_correlation
+
+    dast_findings = _load_findings(dast_report)
+    sast_findings = _load_findings(sast_report)
+    result = correlate(dast_findings, sast_findings)
+    rendered = render_correlation(result, "md" if fmt == "markdown" else fmt)
+
+    if out:
+        Path(out).write_text(rendered, encoding="utf-8")
+        err.print(f"[green]Wrote correlation report to {out}[/green]")
+    else:
+        console.print(rendered) if fmt in ("md", "markdown") else click.echo(rendered)
+
+    err.print(
+        f"[bold]{len(result.correlated)} correlated[/bold], "
+        f"{len(result.dast_only)} DAST-only, {len(result.sast_only)} SAST-only"
+    )
 
 
 @main.command(name="gate")
@@ -257,6 +310,14 @@ def _apply_filters(findings: list[Finding], *, accepted_risk, baseline) -> list[
             "entries; not suppressed[/yellow]"
         )
     return findings
+
+
+def _load_findings(report_path: str) -> list[Finding]:
+    doc = json.loads(Path(report_path).read_text(encoding="utf-8"))
+    rows = doc.get("findings", doc if isinstance(doc, list) else [])
+    if not isinstance(rows, list):
+        raise click.ClickException(f"{report_path}: expected a findings list")
+    return [_finding_from_dict(r) for r in rows]
 
 
 def _finding_from_dict(d: dict) -> Finding:

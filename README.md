@@ -174,6 +174,39 @@ notes for exact repro steps.
 | `ssrf` | Server-side request forgery | CWE-918 | API7:2023 | WSTG-INPV-19 |
 | `sqli` | Error-based SQL injection | CWE-89 | API8:2023 | WSTG-INPV-05 |
 
+## SAST + correlate
+
+`oedipus sast` runs a small set of custom Semgrep rules (`semgrep-rules/`)
+over source and emits findings in the **same** `Finding` schema as `scan` —
+same reporters, same `oedipus gate`. `oedipus correlate` then joins a SAST
+report and a DAST report on `(method, path_template, cwe)`, since the two
+layers speak different check-id vocabularies but agree on CWE:
+
+```bash
+pip install -e ".[sast]"          # installs the real semgrep binary
+oedipus sast --rules semgrep-rules --src vulnapp --format json --out sast.json
+oedipus scan --suite vulnapp --format json --out dast.json
+oedipus correlate --dast dast.json --sast sast.json --format md
+```
+
+Run against `vulnapp/app.py`, this correlates 3 of the 6 planted bugs (SQLi,
+mass assignment, SSRF) — one alert instead of two duplicate ones. The other
+three are informative on their own:
+
+- **BOLA and excessive data exposure are DAST-only.** Both require reasoning
+  about runtime state (does this caller own this object? does this dict
+  actually contain a password field?) that a syntactic source scan can't do.
+  JWT's weak-secret/`alg=none` bugs are flagged by SAST too, but at the
+  token life-cycle code itself rather than a single route — a shared auth
+  helper is cross-cutting, so it shows up as `sast_only` rather than joined.
+- **SSRF is flagged at *both* url-preview routes by SAST**, including the
+  hardened `/api/url-preview-safe` lookalike — the allowlist check that
+  protects it lives in the *caller*, not the sink function itself, which a
+  syntactic rule can't see. DAST resolves the ambiguity by actually testing
+  both routes at runtime. This is the concrete case for running both layers:
+  SAST tells you where a sink is reachable from user input; DAST tells you
+  whether the guard in front of it actually holds.
+
 ## Safety (see `docs/threat-model.md`)
 
 - **Scope allowlist** — only loopback/RFC1918 by default; public targets require `--i-understand`.
@@ -184,6 +217,9 @@ notes for exact repro steps.
 
 ```
 src/oedipus/          scanner: models, http client, scope, crawler, auth, checks, report, eval
+src/oedipus/sast/     Semgrep runner + AST route mapper, emits the same Finding schema
+src/oedipus/correlate.py  join a SAST report + a DAST report on (method, path, cwe)
+semgrep-rules/        custom rules for oedipus sast (sqli, ssrf, jwt, mass assignment)
 vulnapp/              the project's OWN vulnerable target (FastAPI + Jinja2/HTMX, SAFE-mode toggle)
 benchmarks/           compose.yml, suites/*.yaml, expected/*.json, payloads/*.txt
 docs/                 training.md, threat-model.md, vulnapp.md, checks/*.md
@@ -195,7 +231,7 @@ accepted-risk.yml     finding fingerprint + owner + expiry; consumed by `oedipus
 ## CI
 
 - **`.github/workflows/ci.yml`** — install deps, run `pytest` (unit + in-process vulnapp integration).
-- **`.github/workflows/scan.yml`** — `docker compose up` for vulnapp and VAmPI, `oedipus eval --min-recall 1.0 --max-fp 0`, upload SARIF to GitHub Code Scanning, then `oedipus gate --fail-on high`.
+- **`.github/workflows/scan.yml`** — `docker compose up` for vulnapp and VAmPI, `oedipus eval --min-recall 1.0 --max-fp 0`, upload SARIF to GitHub Code Scanning, then `oedipus gate --fail-on high`. Also runs `oedipus sast` + `oedipus correlate` against vulnapp and uploads the reports as artifacts (informational — not yet gated).
 - **PR-only** — download `main`'s last JSON report and pass it as `--baseline` so only **new** High+ findings fail the PR.
 - **`accepted-risk.yml`** — planted demo findings are tracked (fingerprint, owner, expiry) and suppressed from the fail-on gate until they expire. Code Scanning still gets the unfiltered SARIF.
 

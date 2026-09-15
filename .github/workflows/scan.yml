@@ -25,7 +25,7 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: pyproject.toml
-      - run: pip install -e ".[dev,vulnapp]"
+      - run: pip install -e ".[dev,vulnapp,sast]"
 
       - name: Boot vulnapp (vulnerable :8000 + hardened :8001)
         run: |
@@ -52,6 +52,26 @@ jobs:
       - name: Scan vulnapp (JSON report)
         if: always()
         run: oedipus scan --suite vulnapp --format json --out vulnapp.json
+
+      - name: SAST vulnapp (Semgrep, same Finding schema)
+        if: always()
+        run: oedipus sast --rules semgrep-rules --src vulnapp --format json --out vulnapp-sast.json
+
+      - name: Correlate SAST + DAST (informational; not gated)
+        if: always() && hashFiles('vulnapp.json') != '' && hashFiles('vulnapp-sast.json') != ''
+        continue-on-error: true
+        run: oedipus correlate --dast vulnapp.json --sast vulnapp-sast.json --format md | tee correlate-vulnapp.md
+
+      - name: Upload SAST + correlation artifacts
+        if: always() && hashFiles('vulnapp-sast.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnapp-sast
+          path: |
+            vulnapp-sast.json
+            correlate-vulnapp.md
+          if-no-files-found: warn
+          retention-days: 90
 
       - name: Convert JSON to SARIF for Code Scanning
         if: always() && hashFiles('vulnapp.json') != ''

@@ -111,6 +111,40 @@ allowlisted fetch next to the SSRF-able one). If your check targets a new bug
 class, add both the vulnerable route and its safe lookalike so the
 zero-false-positive claim keeps meaning something.
 
+## Adding a Semgrep (SAST) rule
+
+Static rules live in `semgrep-rules/*.yaml` and are picked up automatically —
+`oedipus sast` runs every file in that directory. Each rule's `metadata`
+block carries the same standards mapping as a `Check`:
+
+```yaml
+rules:
+  - id: my-rule
+    languages: [python]
+    severity: ERROR   # maps to Severity.HIGH unless oedipus_severity overrides it
+    message: "..."    # becomes the Finding's description
+    metadata:
+      cwe: CWE-...            # required — this is the join key for `oedipus correlate`
+      owasp: API...:2023
+      oedipus_severity: high  # optional; overrides the ERROR/WARNING/INFO -> Severity mapping
+    pattern: ...
+```
+
+- If the CWE matches an existing `Check`'s CWE, add its WSTG/CVSS to
+  `_CWE_STANDARDS` in `src/oedipus/sast/__init__.py` so SAST findings carry
+  the same standards mapping and `oedipus correlate` can join them.
+- Test against a synthetic snippet with `semgrep --config semgrep-rules/my-rule.yaml /tmp/x.py`
+  before wiring it up — YAML pattern strings containing `:` or `{}` usually
+  need quoting (see the existing rules for examples).
+- Only write a rule for something a syntactic scan can actually decide.
+  BOLA and excessive data exposure are deliberately DAST-only in this
+  project — they need runtime state (who owns this object, what does this
+  stored dict actually contain) that source alone doesn't have.
+- Add or extend `tests/integration/test_sast_against_vulnapp.py` to assert
+  the new CWE shows up when scanning `vulnapp/`, and — if the rule targets
+  one specific route — that it resolves to the right `(method, path)` via
+  `oedipus.sast.routes`.
+
 ## Style notes
 
 - No comments explaining *what* the code does — names should do that.

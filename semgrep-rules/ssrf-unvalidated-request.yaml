@@ -1,0 +1,38 @@
+rules:
+  - id: ssrf-unvalidated-request
+    languages: [python]
+    severity: WARNING
+    message: >-
+      A URL-shaped field ($FIELD) taken directly from a request body reaches
+      an outbound HTTP fetch (possibly via a helper function). This is a
+      candidate server-side request forgery sink (CWE-918) — confirm at
+      runtime whether the destination host actually passes an allowlist
+      check before the request is made; a hit here does not by itself prove
+      the route is exploitable if the caller validates the URL first.
+    metadata:
+      cwe: CWE-918
+      owasp: API7:2023
+      oedipus_severity: medium
+      references:
+        - https://cwe.mitre.org/data/definitions/918.html
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $CLIENT.get($MODEL.$FIELD, ...)
+                  - pattern: $CLIENT.post($MODEL.$FIELD, ...)
+                  - pattern: httpx.get($MODEL.$FIELD, ...)
+                  - pattern: httpx.post($MODEL.$FIELD, ...)
+                  - pattern: requests.get($MODEL.$FIELD, ...)
+                  - pattern: requests.post($MODEL.$FIELD, ...)
+              - metavariable-regex:
+                  metavariable: $FIELD
+                  regex: (?i)^(url|target_url|callback_url|webhook|endpoint|uri)$
+          - patterns:
+              - pattern: $FUNC($MODEL.$FIELD)
+              - metavariable-regex:
+                  metavariable: $FIELD
+                  regex: (?i)^(url|target_url|callback_url|webhook|endpoint|uri)$
+              - metavariable-regex:
+                  metavariable: $FUNC
+                  regex: (?i)^(?!.*(allow|valid|check|sanitiz|verify|host)).*$

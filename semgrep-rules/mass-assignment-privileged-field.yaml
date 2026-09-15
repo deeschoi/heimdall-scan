@@ -1,0 +1,24 @@
+rules:
+  - id: mass-assignment-privileged-field
+    languages: [python]
+    severity: WARNING
+    message: >-
+      A request model (Pydantic BaseModel used to parse client input) declares
+      a privileged/authorization field ($FIELD) that a client can set
+      directly. If handler code trusts this value instead of re-deriving it
+      from the authenticated principal, a client can self-elevate on
+      register/update (CWE-915, mass assignment).
+    metadata:
+      cwe: CWE-915
+      owasp: API6:2023
+      oedipus_severity: medium
+      references:
+        - https://cwe.mitre.org/data/definitions/915.html
+    patterns:
+      - pattern-inside: |
+          class $MODEL(BaseModel):
+            ...
+      - pattern: '$FIELD : $TYPE = $DEFAULT'
+      - metavariable-regex:
+          metavariable: $FIELD
+          regex: (?i)^(admin|is_admin|is_staff|is_superuser|role|roles|permissions|is_verified)$

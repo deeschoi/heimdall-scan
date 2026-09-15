@@ -1,8 +1,8 @@
 .PHONY: install bench-up bench-down bench-seed eval scan test lint clean \
-        vulnapp-up vulnapp-down eval-vulnapp scan-vulnapp ci
+        vulnapp-up vulnapp-down eval-vulnapp scan-vulnapp ci sast correlate
 
 install:
-	python3 -m venv .venv && . .venv/bin/activate && pip install -e ".[dev,vulnapp]"
+	python3 -m venv .venv && . .venv/bin/activate && pip install -e ".[dev,vulnapp,sast]"
 
 # Bring up the local benchmark targets (VAmPI vuln + safe, Juice Shop).
 bench-up:
@@ -39,6 +39,17 @@ eval-vulnapp:
 
 scan-vulnapp:
 	oedipus scan --suite vulnapp --format md
+
+# Static half of the vulnapp story: Semgrep over source, then join with a
+# live scan's JSON report. Run scan-vulnapp with --format json --out first.
+sast:
+	oedipus sast --rules semgrep-rules --src vulnapp --format md
+
+correlate:
+	mkdir -p .tmp
+	oedipus scan --suite vulnapp --format json --out .tmp/dast.json
+	oedipus sast --rules semgrep-rules --src vulnapp --format json --out .tmp/sast.json
+	oedipus correlate --dast .tmp/dast.json --sast .tmp/sast.json --format md
 
 test:
 	pytest -q

@@ -1,0 +1,25 @@
+rules:
+  - id: sql-string-concat
+    languages: [python]
+    severity: ERROR
+    message: >-
+      A SQL statement is built with string formatting or concatenation
+      instead of a parameterized query placeholder. If any part of the
+      interpolated value is attacker-controlled this is a SQL injection
+      (CWE-89).
+    metadata:
+      cwe: CWE-89
+      owasp: API8:2023
+      oedipus_severity: high
+      references:
+        - https://cwe.mitre.org/data/definitions/89.html
+    patterns:
+      - pattern: $CURSOR.execute($QUERY, ...)
+      - metavariable-pattern:
+          metavariable: $QUERY
+          patterns:
+            - pattern-either:
+                - pattern-regex: '\{[^}]*\}'
+                - pattern: $A + $B
+                - pattern: '"...".format(...)'
+                - pattern: '"..." % $X'

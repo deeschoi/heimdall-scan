@@ -22,6 +22,8 @@ dependencies = [
 dev = ["pytest>=8.0", "pytest-httpx>=0.30", "respx>=0.21"]
 # oedipus-vulnapp, the project's own deliberately-vulnerable scan target.
 vulnapp = ["fastapi>=0.110", "uvicorn>=0.29", "jinja2>=3.1"]
+# `oedipus sast` shells out to the real semgrep binary this extra installs.
+sast = ["semgrep>=1.70"]
 
 [project.scripts]
 oedipus = "oedipus.cli:main"

@@ -1,0 +1,19 @@
+rules:
+  - id: jwt-unverified-signature
+    languages: [python]
+    severity: ERROR
+    message: >-
+      A JWT is decoded with signature verification explicitly disabled, or
+      without pinning an algorithm. Either lets an attacker submit a token
+      with an arbitrary payload (an "alg=none" forgery, or a signature that
+      is never checked) and have it accepted as authentic (CWE-347).
+    metadata:
+      cwe: CWE-347
+      owasp: API2:2023
+      oedipus_severity: high
+      references:
+        - https://cwe.mitre.org/data/definitions/347.html
+    pattern-either:
+      - pattern: 'jwt.decode($TOKEN, options={"verify_signature": False, ...})'
+      - pattern: 'jwt.decode($TOKEN, options={..., "verify_signature": False, ...})'
+      - pattern: jwt.decode($TOKEN, verify=False, ...)
