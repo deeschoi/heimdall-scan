@@ -1,5 +1,5 @@
 {
-  "_comment": "crAPI ground truth is a SCAFFOLD. crAPI needs an OTP signup (MailHog :8025) to obtain two customer tokens; until that auth is wired in suites/crapi.yaml and each row is reproduced by hand, every row is must_detect:false so it never inflates recall. These endpoints/CWEs come from crAPI's documented challenge list, not yet from a local reproduction.",
+  "_comment": "Ground truth for OWASP crAPI on http://127.0.0.1:8888, confirmed by hand against the running stack on 2026-09-14. Only rows personally reproduced are must_detect:true so recall stays honest. Match key = check|METHOD|path. Two customer accounts (oed_crapi_a@example.com / oed_crapi_b@example.com) were created via POST /identity/api/auth/signup; VIN/pincode emails were read from MailHog GET http://127.0.0.1:8025/api/v2/messages.",
   "target": "crAPI",
   "source": "https://github.com/OWASP/crAPI/blob/main/docs/challenges.md",
   "expected": [
@@ -11,8 +11,8 @@
       "cwe": "CWE-639",
       "owasp_api": "API1:2023",
       "wstg": "WSTG-ATHZ-04",
-      "must_detect": false,
-      "note": "Access another user's vehicle location by UUID. Confirm then flip to true."
+      "must_detect": true,
+      "note": "Confirmed 2026-09-14: user_b GET /identity/api/v2/vehicle/81b3b134-d915-4d36-8fa0-e4ace61b3e9c/location returns user_a's fullName OedCrapiA (and email) with HTTP 200. Vehicle was added with VIN 1CN46GBN95RZZV403 / pincode 5325 from the signup email."
     },
     {
       "id": "crapi-ssrf-contact-mechanic",
@@ -22,8 +22,8 @@
       "cwe": "CWE-918",
       "owasp_api": "API7:2023",
       "wstg": "WSTG-INPV-19",
-      "must_detect": false,
-      "note": "mechanic_api URL is fetched server-side. Needs a metadata mock or reflected canary to score."
+      "must_detect": true,
+      "note": "Confirmed 2026-09-14: POST {mechanic_api: http://mailhog:8025/} as user_a returns HTTP 200 with MailHog's HTML title in response_from_mechanic_api. http://169.254.169.254/latest/meta-data/ timed out (no IMDS sidecar in this compose)."
     },
     {
       "id": "crapi-bola-mechanic-reports",
@@ -33,8 +33,19 @@
       "cwe": "CWE-639",
       "owasp_api": "API1:2023",
       "wstg": "WSTG-ATHZ-04",
-      "must_detect": false,
-      "note": "report_id is a sequential integer; enumerate across tenants."
+      "must_detect": true,
+      "note": "Confirmed 2026-09-14: user_a filed report_id=6 via contact_mechanic -> http://crapi-web/workshop/api/mechanic/receive_report with problem_details OEDIPUS_CANARY_crapi_rpt7f3a; user_b GET /workshop/api/mechanic/mechanic_report?report_id=6 returns that canary with HTTP 200. No ownership check."
+    },
+    {
+      "id": "crapi-jwt-alg-none",
+      "check": "jwt",
+      "method": "GET",
+      "path": "/identity/api/v2/user/dashboard",
+      "cwe": "CWE-347",
+      "owasp_api": "API2:2023",
+      "wstg": "WSTG-SESS-10",
+      "must_detect": true,
+      "note": "Confirmed 2026-09-14: an unsigned alg=none token forged from user_a's payload is accepted on GET /identity/api/v2/user/dashboard (HTTP 200, returns OedCrapiA). Tokens are RS256, so the weak-HMAC wordlist does not fire."
     }
   ]
 }

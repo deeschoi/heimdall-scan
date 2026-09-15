@@ -120,10 +120,16 @@ def scan(
 
 def scan_suite(suite: Suite, **overrides) -> list[Finding]:
     payloads = suite.resolve(suite.payloads_dir)
+    openapi = suite.openapi
+    # File paths are suite-relative (same convention as expected/payloads_dir).
+    # URLs are left untouched so VAmPI/vulnapp keep fetching live specs.
+    if openapi and not str(openapi).startswith(("http://", "https://")):
+        resolved = suite.resolve(openapi)
+        openapi = str(resolved) if resolved else openapi
     return scan(
         suite.target,
         suite.checks,
-        openapi=suite.openapi,
+        openapi=openapi,
         auth=suite.auth,
         hints=suite.hints,
         payloads_dir=payloads,

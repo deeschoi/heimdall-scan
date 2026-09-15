@@ -2,11 +2,14 @@
 #
 # The full crAPI stack is expected on http://127.0.0.1:8888 (crapi-web).
 # Its OpenAPI spec ships in the repo: crAPI-main/openapi-spec/crapi-openapi-spec.json
+# MailHog (signup VIN/pincode emails) is on http://127.0.0.1:8025.
 #
-# STATUS: scaffolded. crAPI's signup uses an email/OTP flow (MailHog on :8025),
-# so the two-identity auth below must be finished by hand before the BOLA/SSRF
-# rows in expected/crapi.json are flipped to must_detect:true. Everything else
-# (crawl, checks, eval wiring) already works; this is a fill-in-auth task.
+# Auth was built once via the normal signup flow (POST /identity/api/auth/signup)
+# and the VIN/pincode emails in MailHog GET /api/v2/messages (quoted-printable
+# Raw.Data; Content.Body is empty). Vehicles were then added with
+# POST /identity/api/v2/vehicle/add_vehicle. Subsequent evals just log in —
+# crAPI does not require an OTP at login. If the crAPI DB is wiped, re-run
+# signup + MailHog VIN add + contact_mechanic (see expected/crapi.json notes).
 
 name: crapi
 target: http://127.0.0.1:8888
@@ -16,36 +19,54 @@ payloads_dir: ../payloads
 
 checks: [sqli, exposure, bola, ssrf, jwt]
 
-# TODO(dee): complete the OTP-based signup for two customers, then paste their
-# bearer tokens here (type: bearer) or wire a login step (type: login).
-# MailHog UI at http://127.0.0.1:8025 shows the OTP emails.
 auth:
   user_a:
-    type: bearer
-    token: "PASTE_CUSTOMER_A_JWT"
+    type: login
+    register: { path: /identity/api/auth/signup,
+                json: { email: oed_crapi_a@example.com, name: OedCrapiA,
+                        number: "5550100001", password: OedCrapi!a123 } }
+    login:    { path: /identity/api/auth/login,
+                json: { email: oed_crapi_a@example.com, password: OedCrapi!a123 },
+                token_field: token }
   user_b:
-    type: bearer
-    token: "PASTE_CUSTOMER_B_JWT"
+    type: login
+    register: { path: /identity/api/auth/signup,
+                json: { email: oed_crapi_b@example.com, name: OedCrapiB,
+                        number: "5550100002", password: OedCrapi!b123 } }
+    login:    { path: /identity/api/auth/login,
+                json: { email: oed_crapi_b@example.com, password: OedCrapi!b123 },
+                token_field: token }
 
 hints:
-  # Well-documented crAPI BOLA: another customer's vehicle location by UUID.
-  # Fill in a real vehicle UUID owned by user_a and confirm user_b can read it.
+  # Challenge 1: user_b reads user_a's vehicle location by UUID. Canary is
+  # user_a's fullName from GET .../location (confirmed 2026-09-14).
   bola:
-    - read: { path: "/identity/api/v2/vehicle/PASTE_VEHICLE_UUID_A/location",
+    - read: { path: "/identity/api/v2/vehicle/81b3b134-d915-4d36-8fa0-e4ace61b3e9c/location",
               method: GET, as: user_b,
               path_template: "/identity/api/v2/vehicle/{vehicleId}/location" }
-      canary: "PASTE_A_UNIQUE_VALUE_FROM_A_RESPONSE"
+      canary: "OedCrapiA"
 
-  # crAPI SSRF: the mechanic "contact" endpoint fetches a client-supplied URL.
+    # Challenge 2: sequential report_id has no ownership check. user_a filed
+    # report 6 with a unique problem_details canary; user_b reads it.
+    - read: { path: "/workshop/api/mechanic/mechanic_report?report_id=6",
+              method: GET, as: user_b,
+              path_template: "/workshop/api/mechanic/mechanic_report" }
+      canary: "OEDIPUS_CANARY_crapi_rpt7f3a"
+
+  # Challenge 11: contact_mechanic fetches mechanic_api server-side.
+  # 169.254.169.254/latest/meta-data/ timed out (no IMDS sidecar). MailHog
+  # is on the compose network; the HTML title is the reflected canary.
   ssrf:
     - path: /workshop/api/merchant/contact_mechanic
       method: POST
       param: mechanic_api
       location: body
       as: user_a
-      canary: "http://169.254.169.254/latest/meta-data/"
-      match: "ami-id"
+      canary: "http://mailhog:8025/"
+      match: "MailHog"
 
+  # Challenge 15: dashboard accepts alg=none. Tokens are RS256, so the weak
+  # HMAC wordlist (including "crapi") does not apply.
   jwt:
     identity: user_a
     protected: { path: /identity/api/v2/user/dashboard, method: GET }
