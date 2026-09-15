@@ -81,7 +81,7 @@ class HttpClient:
         return Evidence(
             request_method=req.method,
             request_url=str(req.url),
-            request_headers={k: v for k, v in req.headers.items() if k.lower() != "authorization" or True},
+            request_headers={k: v for k, v in req.headers.items() if k.lower() != "authorization"},
             request_body=body,
             response_status=response.status_code,
             response_headers=dict(response.headers),
