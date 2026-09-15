@@ -14,7 +14,7 @@ and checks a `vulnerable=0` control target produces zero findings.
 |---|---|---|
 | **oedipus-vulnapp** (`:8000` vuln / `:8001` hardened) | this repo's OWN target ([`vulnapp/`](vulnapp/)) | precision 1.00 · recall 1.00 · F1 1.00 · 7/7 TP · 0 FP · 0 safe-FP |
 | **VAmPI** (`:5001` vuln / `:5002` safe) | fully wired + scored | precision 1.00 · recall 1.00 · F1 1.00 · 5/5 TP · 0 FP · 0 safe-FP |
-| **crAPI** (`:8888`) | scaffolded; needs OTP-signup auth wired in | ground truth unscored until reproduced |
+| **crAPI** (`:8888`) | fully wired + scored | precision 1.00 · recall 1.00 · F1 1.00 · 4/4 TP · 0 FP |
 | **Juice Shop** (`:3000`) | optional breadth/demo target | not a scored suite |
 
 `oedipus-vulnapp` is a small multi-tenant notes SaaS (FastAPI + Jinja2/HTMX UI,
@@ -63,6 +63,23 @@ oedipus replay o.json                                  # re-confirm each finding
 oedipus explain o.json <fingerprint>                   # evidence for one finding
 oedipus gate o.json --accepted-risk accepted-risk.yml --fail-on high
 ```
+
+## Benchmarks (crAPI)
+
+crAPI's own stack (`crAPI-main/deploy/docker`) is heavier than VAmPI's — it's a
+multi-service microservice app with email/OTP signup via MailHog — so it isn't
+wired into `benchmarks/compose.yml`. Bring it up with crAPI's own compose file,
+then:
+
+```bash
+oedipus eval crapi    # precision / recall / F1 vs benchmarks/expected/crapi.json
+oedipus scan --suite crapi --format md
+```
+
+Ground truth in `benchmarks/expected/crapi.json` (BOLA on vehicle location,
+BOLA on mechanic reports, SSRF via `contact_mechanic`, and a forged `alg=none`
+JWT) was reproduced by hand against a running stack; see the file's per-row
+notes for exact repro steps.
 
 ## Checks
 
