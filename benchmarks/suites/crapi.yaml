@@ -51,7 +51,7 @@ hints:
     - read: { path: "/workshop/api/mechanic/mechanic_report?report_id=6",
               method: GET, as: user_b,
               path_template: "/workshop/api/mechanic/mechanic_report" }
-      canary: "OEDIPUS_CANARY_crapi_rpt7f3a"
+      canary: "HEIMDALL_CANARY_crapi_rpt7f3a"
 
   # Challenge 11: contact_mechanic fetches mechanic_api server-side.
   # 169.254.169.254/latest/meta-data/ timed out (no IMDS sidecar). MailHog

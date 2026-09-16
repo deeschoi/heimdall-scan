@@ -1,4 +1,4 @@
-from oedipus.models import Evidence, Finding, Severity
+from heimdall.models import Evidence, Finding, Severity
 
 
 def _finding(**kw):

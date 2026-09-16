@@ -1,6 +1,6 @@
-"""oedipus-vulnapp: a small multi-tenant SaaS with six planted API bugs.
+"""heimdall-vulnapp: a small multi-tenant SaaS with six planted API bugs.
 
-Each planted bug is matched to exactly one Oedipus check oracle:
+Each planted bug is matched to exactly one Heimdall check oracle:
 
   bola             GET  /api/notes/{note_id}   cross-tenant object read
   jwt (weak)       POST /api/login             HS256 signed with a wordlist secret
@@ -40,7 +40,7 @@ from pydantic import BaseModel
 SAFE = os.getenv("VULNAPP_SAFE", "0") == "1"
 
 # Weak secret in the vulnerable build. It is a line in
-# benchmarks/payloads/jwt-secrets.txt, so oedipus' jwt check verifies the
+# benchmarks/payloads/jwt-secrets.txt, so heimdall' jwt check verifies the
 # target's own token signature against it offline. The hardened build swaps in a
 # long random secret that is NOT in any wordlist.
 WEAK_JWT_SECRET = "changeme"
@@ -188,7 +188,7 @@ def create_app() -> FastAPI:
     _seed_db()
 
     app = FastAPI(
-        title="Acme Notes (oedipus-vulnapp)",
+        title="Acme Notes (heimdall-vulnapp)",
         version="0.1.0",
         description="A deliberately vulnerable multi-tenant notes SaaS.",
     )
@@ -224,7 +224,7 @@ def create_app() -> FastAPI:
             "local-ipv4\n"
         )
 
-    # ----- API (this is what oedipus crawls via /openapi.json) -----
+    # ----- API (this is what heimdall crawls via /openapi.json) -----
     @app.get("/healthz")
     def healthz():
         return {"status": "ok", "mode": "safe" if SAFE else "vulnerable"}

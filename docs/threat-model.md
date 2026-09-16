@@ -1,6 +1,6 @@
 # Threat model (one-pager)
 
-Scope: **Oedipus is an active DAST tool.** The threat model here is about the
+Scope: **Heimdall is an active DAST tool.** The threat model here is about the
 *scanner*, not the deliberately-vulnerable targets it scans.
 
 ## Assets
@@ -9,9 +9,9 @@ Scope: **Oedipus is an active DAST tool.** The threat model here is about the
 - Any credentials/tokens the scanner is handed to authenticate as a user.
 
 ## Trust boundaries
-- Operator → Oedipus: CLI flags and suite YAML (trusted input).
-- Oedipus → target: every outbound request (must stay in scope).
-- Target → Oedipus: responses (untrusted; parsed defensively).
+- Operator → Heimdall: CLI flags and suite YAML (trusted input).
+- Heimdall → target: every outbound request (must stay in scope).
+- Target → Heimdall: responses (untrusted; parsed defensively).
 
 ## Abuse cases and mitigations
 | Abuse case | Mitigation in code |

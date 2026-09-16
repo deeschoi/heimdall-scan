@@ -18,12 +18,12 @@ bench-seed:
 
 # Score detection against frozen ground truth.
 eval: bench-seed
-	oedipus eval vampi
+	heimdall eval vampi
 
 scan:
-	oedipus scan --suite vampi --format md
+	heimdall scan --suite vampi --format md
 
-# --- oedipus-vulnapp: the project's own target -------------------------------
+# --- heimdall-vulnapp: the project's own target -------------------------------
 # Build + run both the vulnerable (:8000) and hardened (:8001) builds via Docker.
 vulnapp-up:
 	docker compose -f benchmarks/compose.yml up -d --build vulnapp-vuln vulnapp-safe
@@ -35,21 +35,21 @@ vulnapp-down:
 #   PORT=8000 VULNAPP_SAFE=0 python -m vulnapp &
 #   PORT=8001 VULNAPP_SAFE=1 python -m vulnapp &
 eval-vulnapp:
-	oedipus eval vulnapp --min-recall 1.0 --max-fp 0
+	heimdall eval vulnapp --min-recall 1.0 --max-fp 0
 
 scan-vulnapp:
-	oedipus scan --suite vulnapp --format md
+	heimdall scan --suite vulnapp --format md
 
 # Static half of the vulnapp story: Semgrep over source, then join with a
 # live scan's JSON report. Run scan-vulnapp with --format json --out first.
 sast:
-	oedipus sast --rules semgrep-rules --src vulnapp --format md
+	heimdall sast --rules semgrep-rules --src vulnapp --format md
 
 correlate:
 	mkdir -p .tmp
-	oedipus scan --suite vulnapp --format json --out .tmp/dast.json
-	oedipus sast --rules semgrep-rules --src vulnapp --format json --out .tmp/sast.json
-	oedipus correlate --dast .tmp/dast.json --sast .tmp/sast.json --format md
+	heimdall scan --suite vulnapp --format json --out .tmp/dast.json
+	heimdall sast --rules semgrep-rules --src vulnapp --format json --out .tmp/sast.json
+	heimdall correlate --dast .tmp/dast.json --sast .tmp/sast.json --format md
 
 test:
 	pytest -q

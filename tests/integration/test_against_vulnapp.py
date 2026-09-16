@@ -1,8 +1,8 @@
-"""End-to-end regression against Oedipus' own vulnerable app.
+"""End-to-end regression against Heimdall's own vulnerable app.
 
 Boots two builds of ``vulnapp`` as real subprocesses — the vulnerable target on
 :8000 and the hardened false-positive control on :8001 — then runs the full
-``oedipus eval vulnapp`` and asserts:
+``heimdall eval vulnapp`` and asserts:
 
   * every planted bug is detected (recall == 1.0),
   * nothing unexpected fires on the vulnerable target (fp == 0),
@@ -26,8 +26,8 @@ import pytest
 pytest.importorskip("fastapi", reason="vulnapp extra not installed")
 pytest.importorskip("uvicorn", reason="vulnapp extra not installed")
 
-from oedipus.engine import Suite  # noqa: E402
-from oedipus.eval import evaluate  # noqa: E402
+from heimdall.engine import Suite  # noqa: E402
+from heimdall.eval import evaluate  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 SUITE = ROOT / "benchmarks" / "suites" / "vulnapp.yaml"

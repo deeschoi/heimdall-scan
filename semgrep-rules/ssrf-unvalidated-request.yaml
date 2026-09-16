@@ -12,7 +12,7 @@ rules:
     metadata:
       cwe: CWE-918
       owasp: API7:2023
-      oedipus_severity: medium
+      heimdall_severity: medium
       references:
         - https://cwe.mitre.org/data/definitions/918.html
     patterns:

@@ -1,10 +1,10 @@
-# Oedipus
+# Heimdall
 
 An API-focused DAST CLI where **every finding is a deterministic, replayable
 check**. Exploration can be heuristic (and later LLM-assisted), but a finding is
 only emitted when a matcher fires and its evidence request can be replayed.
 
-Detection quality is a *measured* claim: `oedipus eval` scores the scanner
+Detection quality is a *measured* claim: `heimdall eval` scores the scanner
 against frozen ground truth on deliberately-vulnerable benchmarks (VAmPI, crAPI)
 and checks a `vulnerable=0` control target produces zero findings.
 
@@ -12,12 +12,12 @@ and checks a `vulnerable=0` control target produces zero findings.
 
 | Target | State | Result |
 |---|---|---|
-| **oedipus-vulnapp** (`:8000` vuln / `:8001` hardened) | this repo's OWN target ([`vulnapp/`](vulnapp/)) | precision 1.00 · recall 1.00 · F1 1.00 · 7/7 TP · 0 FP · 0 safe-FP |
+| **heimdall-vulnapp** (`:8000` vuln / `:8001` hardened) | this repo's OWN target ([`vulnapp/`](vulnapp/)) | precision 1.00 · recall 1.00 · F1 1.00 · 7/7 TP · 0 FP · 0 safe-FP |
 | **VAmPI** (`:5001` vuln / `:5002` safe) | fully wired + scored | precision 1.00 · recall 1.00 · F1 1.00 · 5/5 TP · 0 FP · 0 safe-FP |
 | **crAPI** (`:8888`) | fully wired + scored | precision 1.00 · recall 1.00 · F1 1.00 · 4/4 TP · 0 FP |
 | **Juice Shop** (`:3000`) | optional breadth/demo target | not a scored suite |
 
-`oedipus-vulnapp` is a small multi-tenant notes SaaS (FastAPI + Jinja2/HTMX UI,
+`heimdall-vulnapp` is a small multi-tenant notes SaaS (FastAPI + Jinja2/HTMX UI,
 `/openapi.json` contract) with six bugs planted on purpose — one per check — plus
 negative "lookalike" routes (parameterized SQL, allowlisted fetch) that must
 **not** fire. A hardened build (`VULNAPP_SAFE=1`) fixes every bug, so the whole
@@ -29,15 +29,15 @@ check set is used for the zero-false-positive control.
 Markdown report), run against the project's own `vulnapp` target:
 
 ```bash
-asciinema play docs/demo/oedipus-demo.cast   # recorded with docs/demo/record.sh
+asciinema play docs/demo/heimdall-demo.cast   # recorded with docs/demo/record.sh
 ```
 
 <details>
 <summary>Transcript (click to expand)</summary>
 
 ```
-$ oedipus list-checks
-                                           Oedipus checks
+$ heimdall list-checks
+                                           Heimdall checks
 ┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━┓
 ┃ id              ┃ title                            ┃ CWE     ┃ OWASP API ┃ WSTG         ┃ ASVS   ┃
 ┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━┩
@@ -52,7 +52,7 @@ $ oedipus list-checks
 │ ssrf            │ Server-side request forgery      │ CWE-918 │ API7:2023 │ WSTG-INPV-19 │ 12.6.1 │
 └─────────────────┴──────────────────────────────────┴─────────┴───────────┴──────────────┴────────┘
 
-$ oedipus eval vulnapp
+$ heimdall eval vulnapp
          eval: vulnapp
 ┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┓
 ┃ metric          ┃ value     ┃
@@ -64,11 +64,11 @@ $ oedipus eval vulnapp
 │ safe-target FPs │ 0         │
 └─────────────────┴───────────┘
 
-$ oedipus scan --suite vulnapp --format md --out /tmp/oedipus-demo.md
-Wrote 7 findings to /tmp/oedipus-demo.md
+$ heimdall scan --suite vulnapp --format md --out /tmp/heimdall-demo.md
+Wrote 7 findings to /tmp/heimdall-demo.md
 7 findings (critical=1, high=6)
 
-# Oedipus scan report
+# Heimdall scan report
 
 **Target:** `http://127.0.0.1:8000`
 **Findings:** 7
@@ -119,12 +119,12 @@ source .venv/bin/activate
 PORT=8000 VULNAPP_SAFE=0 python -m vulnapp &   # vulnerable  -> http://127.0.0.1:8000
 PORT=8001 VULNAPP_SAFE=1 python -m vulnapp &   # hardened    -> http://127.0.0.1:8001
 
-oedipus list-checks                # what Oedipus detects (CWE/OWASP-API/WSTG/ASVS)
-oedipus eval vulnapp               # precision / recall / F1 + safe-target FP scan
-oedipus scan --suite vulnapp --format md
+heimdall list-checks                # what Heimdall detects (CWE/OWASP-API/WSTG/ASVS)
+heimdall eval vulnapp               # precision / recall / F1 + safe-target FP scan
+heimdall scan --suite vulnapp --format md
 ```
 
-Open <http://127.0.0.1:8000> to see the app in a browser; Oedipus scans the
+Open <http://127.0.0.1:8000> to see the app in a browser; Heimdall scans the
 `/openapi.json` contract, not the HTML. (Docker alternative: `make vulnapp-up`.)
 
 ## Benchmarks (VAmPI)
@@ -132,18 +132,18 @@ Open <http://127.0.0.1:8000> to see the app in a browser; Oedipus scans the
 ```bash
 make bench-up         # docker compose: VAmPI vuln+safe (+ Juice Shop)
 make bench-seed       # VAmPI ships an empty DB; GET /createdb seeds it
-oedipus eval vampi    # precision / recall / F1 vs benchmarks/expected/vampi.json
+heimdall eval vampi    # precision / recall / F1 vs benchmarks/expected/vampi.json
 ```
 
 Scan and export:
 
 ```bash
-oedipus scan --suite vampi --format md                 # human report
-oedipus scan --suite vampi --format sarif --out o.sarif # GitHub Code Scanning
-oedipus scan --suite vampi --format json --out o.json  # machine / baseline
-oedipus replay o.json                                  # re-confirm each finding
-oedipus explain o.json <fingerprint>                   # evidence for one finding
-oedipus gate o.json --accepted-risk accepted-risk.yml --fail-on high
+heimdall scan --suite vampi --format md                 # human report
+heimdall scan --suite vampi --format sarif --out o.sarif # GitHub Code Scanning
+heimdall scan --suite vampi --format json --out o.json  # machine / baseline
+heimdall replay o.json                                  # re-confirm each finding
+heimdall explain o.json <fingerprint>                   # evidence for one finding
+heimdall gate o.json --accepted-risk accepted-risk.yml --fail-on high
 ```
 
 ## Benchmarks (crAPI)
@@ -154,8 +154,8 @@ wired into `benchmarks/compose.yml`. Bring it up with crAPI's own compose file,
 then:
 
 ```bash
-oedipus eval crapi    # precision / recall / F1 vs benchmarks/expected/crapi.json
-oedipus scan --suite crapi --format md
+heimdall eval crapi    # precision / recall / F1 vs benchmarks/expected/crapi.json
+heimdall scan --suite crapi --format md
 ```
 
 Ground truth in `benchmarks/expected/crapi.json` (BOLA on vehicle location,
@@ -176,17 +176,17 @@ notes for exact repro steps.
 
 ## SAST + correlate
 
-`oedipus sast` runs a small set of custom Semgrep rules (`semgrep-rules/`)
+`heimdall sast` runs a small set of custom Semgrep rules (`semgrep-rules/`)
 over source and emits findings in the **same** `Finding` schema as `scan` —
-same reporters, same `oedipus gate`. `oedipus correlate` then joins a SAST
+same reporters, same `heimdall gate`. `heimdall correlate` then joins a SAST
 report and a DAST report on `(method, path_template, cwe)`, since the two
 layers speak different check-id vocabularies but agree on CWE:
 
 ```bash
 pip install -e ".[sast]"          # installs the real semgrep binary
-oedipus sast --rules semgrep-rules --src vulnapp --format json --out sast.json
-oedipus scan --suite vulnapp --format json --out dast.json
-oedipus correlate --dast dast.json --sast sast.json --format md
+heimdall sast --rules semgrep-rules --src vulnapp --format json --out sast.json
+heimdall scan --suite vulnapp --format json --out dast.json
+heimdall correlate --dast dast.json --sast sast.json --format md
 ```
 
 Run against `vulnapp/app.py`, this correlates 3 of the 6 planted bugs (SQLi,
@@ -216,29 +216,29 @@ three are informative on their own:
 ## Layout
 
 ```
-src/oedipus/          scanner: models, http client, scope, crawler, auth, checks, report, eval
-src/oedipus/sast/     Semgrep runner + AST route mapper, emits the same Finding schema
-src/oedipus/correlate.py  join a SAST report + a DAST report on (method, path, cwe)
-semgrep-rules/        custom rules for oedipus sast (sqli, ssrf, jwt, mass assignment)
+src/heimdall/          scanner: models, http client, scope, crawler, auth, checks, report, eval
+src/heimdall/sast/     Semgrep runner + AST route mapper, emits the same Finding schema
+src/heimdall/correlate.py  join a SAST report + a DAST report on (method, path, cwe)
+semgrep-rules/        custom rules for heimdall sast (sqli, ssrf, jwt, mass assignment)
 vulnapp/              the project's OWN vulnerable target (FastAPI + Jinja2/HTMX, SAFE-mode toggle)
 benchmarks/           compose.yml, suites/*.yaml, expected/*.json, payloads/*.txt
 docs/                 training.md, threat-model.md, vulnapp.md, checks/*.md
 tests/                unit oracles + live regressions (VAmPI + vulnapp; auto-skip if unavailable)
 .github/workflows/    ci.yml (pytest) + scan.yml (eval gate, SARIF, PR baseline, accepted-risk)
-accepted-risk.yml     finding fingerprint + owner + expiry; consumed by `oedipus gate`
+accepted-risk.yml     finding fingerprint + owner + expiry; consumed by `heimdall gate`
 ```
 
 ## CI
 
 - **`.github/workflows/ci.yml`** — install deps, run `pytest` (unit + in-process vulnapp integration).
-- **`.github/workflows/scan.yml`** — `docker compose up` for vulnapp and VAmPI, `oedipus eval --min-recall 1.0 --max-fp 0`, upload SARIF to GitHub Code Scanning, then `oedipus gate --fail-on high`. Also runs `oedipus sast` + `oedipus correlate` against vulnapp and uploads the reports as artifacts (informational — not yet gated).
+- **`.github/workflows/scan.yml`** — `docker compose up` for vulnapp and VAmPI, `heimdall eval --min-recall 1.0 --max-fp 0`, upload SARIF to GitHub Code Scanning, then `heimdall gate --fail-on high`. Also runs `heimdall sast` + `heimdall correlate` against vulnapp and uploads the reports as artifacts (informational — not yet gated).
 - **PR-only** — download `main`'s last JSON report and pass it as `--baseline` so only **new** High+ findings fail the PR.
 - **`accepted-risk.yml`** — planted demo findings are tracked (fingerprint, owner, expiry) and suppressed from the fail-on gate until they expire. Code Scanning still gets the unfiltered SARIF.
 
 ```bash
-oedipus scan --suite vulnapp --format json --out vulnapp.json
-oedipus gate vulnapp.json --accepted-risk accepted-risk.yml --fail-on high
-oedipus gate vulnapp.json --baseline prior.json --fail-on high   # PR delta
+heimdall scan --suite vulnapp --format json --out vulnapp.json
+heimdall gate vulnapp.json --accepted-risk accepted-risk.yml --fail-on high
+heimdall gate vulnapp.json --baseline prior.json --fail-on high   # PR delta
 ```
 
 ## Adding a benchmark
@@ -247,4 +247,4 @@ oedipus gate vulnapp.json --baseline prior.json --fail-on high   # PR delta
 2. Write `benchmarks/suites/<name>.yaml` (target, auth, checks, hints).
 3. Reproduce each bug by hand; record it in `benchmarks/expected/<name>.json`
    (`must_detect: true` only for what you personally confirmed).
-4. `oedipus eval <name>`.
+4. `heimdall eval <name>`.

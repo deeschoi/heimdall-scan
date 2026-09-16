@@ -10,7 +10,7 @@ rules:
     metadata:
       cwe: CWE-89
       owasp: API8:2023
-      oedipus_severity: high
+      heimdall_severity: high
       references:
         - https://cwe.mitre.org/data/definitions/89.html
     patterns:

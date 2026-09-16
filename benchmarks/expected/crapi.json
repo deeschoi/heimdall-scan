@@ -34,7 +34,7 @@
       "owasp_api": "API1:2023",
       "wstg": "WSTG-ATHZ-04",
       "must_detect": true,
-      "note": "Confirmed 2026-09-14: user_a filed report_id=6 via contact_mechanic -> http://crapi-web/workshop/api/mechanic/receive_report with problem_details OEDIPUS_CANARY_crapi_rpt7f3a; user_b GET /workshop/api/mechanic/mechanic_report?report_id=6 returns that canary with HTTP 200. No ownership check."
+      "note": "Confirmed 2026-09-14: user_a filed report_id=6 via contact_mechanic -> http://crapi-web/workshop/api/mechanic/receive_report with problem_details HEIMDALL_CANARY_crapi_rpt7f3a; user_b GET /workshop/api/mechanic/mechanic_report?report_id=6 returns that canary with HTTP 200. No ownership check."
     },
     {
       "id": "crapi-jwt-alg-none",

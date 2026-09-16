@@ -47,20 +47,20 @@ jobs:
           done
 
       - name: Eval vulnapp (gate on full recall + zero false positives)
-        run: oedipus eval vulnapp --format json --min-recall 1.0 --max-fp 0 | tee eval-vulnapp.json
+        run: heimdall eval vulnapp --format json --min-recall 1.0 --max-fp 0 | tee eval-vulnapp.json
 
       - name: Scan vulnapp (JSON report)
         if: always()
-        run: oedipus scan --suite vulnapp --format json --out vulnapp.json
+        run: heimdall scan --suite vulnapp --format json --out vulnapp.json
 
       - name: SAST vulnapp (Semgrep, same Finding schema)
         if: always()
-        run: oedipus sast --rules semgrep-rules --src vulnapp --format json --out vulnapp-sast.json
+        run: heimdall sast --rules semgrep-rules --src vulnapp --format json --out vulnapp-sast.json
 
       - name: Correlate SAST + DAST (informational; not gated)
         if: always() && hashFiles('vulnapp.json') != '' && hashFiles('vulnapp-sast.json') != ''
         continue-on-error: true
-        run: oedipus correlate --dast vulnapp.json --sast vulnapp-sast.json --format md | tee correlate-vulnapp.md
+        run: heimdall correlate --dast vulnapp.json --sast vulnapp-sast.json --format md | tee correlate-vulnapp.md
 
       - name: Upload SAST + correlation artifacts
         if: always() && hashFiles('vulnapp-sast.json') != ''
@@ -75,14 +75,14 @@ jobs:
 
       - name: Convert JSON to SARIF for Code Scanning
         if: always() && hashFiles('vulnapp.json') != ''
-        run: oedipus gate vulnapp.json --format sarif --out report.sarif
+        run: heimdall gate vulnapp.json --format sarif --out report.sarif
 
       - name: Upload SARIF
         if: always() && hashFiles('report.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: report.sarif
-          category: oedipus-vulnapp
+          category: heimdall-vulnapp
 
       - name: Upload JSON baseline artifact
         if: always() && hashFiles('vulnapp.json') != ''
@@ -117,7 +117,7 @@ jobs:
           if [ -n "$baseline" ]; then
             extra+=(--baseline "$baseline")
           fi
-          oedipus gate vulnapp.json \
+          heimdall gate vulnapp.json \
             --accepted-risk accepted-risk.yml \
             "${extra[@]}" \
             --fail-on high
@@ -159,18 +159,18 @@ jobs:
           done
 
       - name: Eval VAmPI (gate on recall + false positives)
-        run: oedipus eval vampi --format json --min-recall 1.0 --max-fp 0 | tee eval-vampi.json
+        run: heimdall eval vampi --format json --min-recall 1.0 --max-fp 0 | tee eval-vampi.json
 
       - name: Produce SARIF for Code Scanning
         if: always()
-        run: oedipus scan --suite vampi --format sarif --out oedipus.sarif || true
+        run: heimdall scan --suite vampi --format sarif --out heimdall.sarif || true
 
       - name: Upload SARIF
-        if: always() && hashFiles('oedipus.sarif') != ''
+        if: always() && hashFiles('heimdall.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: oedipus.sarif
-          category: oedipus-vampi
+          sarif_file: heimdall.sarif
+          category: heimdall-vampi
 
       - name: Tear down
         if: always()

@@ -4,8 +4,8 @@ Each test encodes a technique from the payload sources so a regression in a
 check is caught without booting a lab.
 """
 
-from oedipus.checks.sqli import SqliCheck
-from oedipus.checks.exposure import ExposureCheck
+from heimdall.checks.sqli import SqliCheck
+from heimdall.checks.exposure import ExposureCheck
 
 
 def test_sqli_oracle_detects_engine_errors():

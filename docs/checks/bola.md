@@ -13,14 +13,14 @@ never had access to — a proven authorization break (no heuristics).
 - [x] Cross-tenant read via the object-id endpoint.
 - [ ] Sequential-integer id enumeration (crAPI mechanic reports).
 - [ ] UUID id enumeration via a list endpoint.
-- [x] Replayable: `oedipus replay` re-issues B's read and re-checks the canary.
+- [x] Replayable: `heimdall replay` re-issues B's read and re-checks the canary.
 
 ## Config (suite `hints.bola`)
 ```yaml
 bola:
   - create: { path: /books/v1, method: POST, as: user_a,
-              json: { book_title: oedipus_bola_book, secret: "OEDIPUS_CANARY_9f21a" } }
-    read:   { path: /books/v1/oedipus_bola_book, method: GET, as: user_b,
+              json: { book_title: heimdall_bola_book, secret: "HEIMDALL_CANARY_9f21a" } }
+    read:   { path: /books/v1/heimdall_bola_book, method: GET, as: user_b,
               path_template: "/books/v1/{book_title}" }
-    canary: "OEDIPUS_CANARY_9f21a"
+    canary: "HEIMDALL_CANARY_9f21a"
 ```

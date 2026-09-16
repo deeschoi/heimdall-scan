@@ -1,4 +1,4 @@
-from oedipus.scope import Scope, ScopeError
+from heimdall.scope import Scope, ScopeError
 
 import pytest
 

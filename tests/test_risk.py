@@ -1,4 +1,4 @@
-"""Accepted-risk register, baseline diff, and `oedipus gate`."""
+"""Accepted-risk register, baseline diff, and `heimdall gate`."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
-from oedipus.cli import main
-from oedipus.models import Evidence, Finding, Severity
-from oedipus.report import render
-from oedipus.risk import (
+from heimdall.cli import main
+from heimdall.models import Evidence, Finding, Severity
+from heimdall.report import render
+from heimdall.risk import (
     RiskRegisterError,
     apply_filters,
     fail_on,
@@ -153,7 +153,7 @@ def test_repo_register_covers_vulnapp_ground_truth():
 
 
 def test_gate_repo_register_clears_vulnapp_ground_truth(tmp_path):
-    """The committed register must be enough for `oedipus gate --fail-on high`."""
+    """The committed register must be enough for `heimdall gate --fail-on high`."""
     expected = json.loads(EXPECTED.read_text(encoding="utf-8"))["expected"]
     findings = [
         _finding(

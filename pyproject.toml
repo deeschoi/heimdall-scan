@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "oedipus"
+name = "heimdall"
 version = "0.1.0"
 description = "A DAST CLI for API authz bugs: every finding is a deterministic, replayable check."
 readme = "README.md"
@@ -20,13 +20,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-httpx>=0.30", "respx>=0.21"]
-# oedipus-vulnapp, the project's own deliberately-vulnerable scan target.
+# heimdall-vulnapp, the project's own deliberately-vulnerable scan target.
 vulnapp = ["fastapi>=0.110", "uvicorn>=0.29", "jinja2>=3.1"]
-# `oedipus sast` shells out to the real semgrep binary this extra installs.
+# `heimdall sast` shells out to the real semgrep binary this extra installs.
 sast = ["semgrep>=1.70"]
 
 [project.scripts]
-oedipus = "oedipus.cli:main"
+heimdall = "heimdall.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -1,7 +1,7 @@
 import json
 
-from oedipus.models import Evidence, Finding, Severity
-from oedipus.report import render
+from heimdall.models import Evidence, Finding, Severity
+from heimdall.report import render
 
 
 def _findings():
@@ -35,7 +35,7 @@ def test_sarif_shape_is_valid():
     assert "partialFingerprints" in result
     loc = result["locations"][0]
     physical = loc["physicalLocation"]
-    assert physical["artifactLocation"]["uri"] == "oedipus-findings/sqli/get-users-v1-username.dast"
+    assert physical["artifactLocation"]["uri"] == "heimdall-findings/sqli/get-users-v1-username.dast"
     assert physical["region"]["startLine"] == 1
     logical = loc["logicalLocations"][0]
     assert logical["kind"] == "resource"
@@ -51,6 +51,6 @@ def test_json_report_summary():
 
 def test_markdown_has_evidence_section():
     md = render("md", _findings(), target="t")
-    assert "# Oedipus scan report" in md
+    assert "# Heimdall scan report" in md
     assert "Evidence #1" in md
     assert "CWE-89" in md

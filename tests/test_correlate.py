@@ -1,5 +1,5 @@
-from oedipus.correlate import correlate, render
-from oedipus.models import Finding, Severity
+from heimdall.correlate import correlate, render
+from heimdall.models import Finding, Severity
 
 
 def _f(check_id, method, path, cwe, url="http://x"):

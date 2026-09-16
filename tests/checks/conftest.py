@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import pytest
 
-from oedipus.checks import ScanContext
-from oedipus.http_client import HttpClient
-from oedipus.scope import Scope
+from heimdall.checks import ScanContext
+from heimdall.http_client import HttpClient
+from heimdall.scope import Scope
 
 BASE = "http://127.0.0.1:8000"
 

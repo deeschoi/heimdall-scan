@@ -1,4 +1,4 @@
-# oedipus-vulnapp: deliberately vulnerable target. Do not deploy anywhere public.
+# heimdall-vulnapp: deliberately vulnerable target. Do not deploy anywhere public.
 FROM python:3.12-slim
 
 WORKDIR /app

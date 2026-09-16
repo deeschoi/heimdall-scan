@@ -1,4 +1,4 @@
-from oedipus.sast.routes import build_index
+from heimdall.sast.routes import build_index
 
 _SOURCE = '''
 from fastapi import FastAPI

@@ -1,8 +1,8 @@
-# oedipus-vulnapp — the project's own target
+# heimdall-vulnapp — the project's own target
 
 A small multi-tenant "Acme Notes" SaaS (FastAPI + Jinja2/HTMX) built to be
 scanned. Unlike the vendored benchmarks, every bug here is planted on purpose
-and mapped 1:1 to an Oedipus check, so `oedipus eval vulnapp` has frozen ground
+and mapped 1:1 to an Heimdall check, so `heimdall eval vulnapp` has frozen ground
 truth that we fully control.
 
 Source: [`vulnapp/app.py`](../vulnapp/app.py). Ground truth:

@@ -13,9 +13,9 @@ import jwt as pyjwt
 import pytest
 import respx
 
-from oedipus.auth import Identity
-from oedipus.checks.jwt import JwtCheck
-from oedipus.models import Severity
+from heimdall.auth import Identity
+from heimdall.checks.jwt import JwtCheck
+from heimdall.models import Severity
 
 from .conftest import BASE
 
@@ -23,7 +23,7 @@ from .conftest import BASE
 # here (the check installs the same filter at import time, but pytest resets it).
 pytestmark = pytest.mark.filterwarnings("ignore:The HMAC key")
 
-STRONG_SECRET = "Ok7kq5Xz-oedipus-not-in-any-wordlist-2f91b0"
+STRONG_SECRET = "Ok7kq5Xz-heimdall-not-in-any-wordlist-2f91b0"
 PROTECTED = {"path": "/me", "method": "GET"}
 
 
@@ -69,7 +69,7 @@ def test_strong_secret_is_silent(make_ctx):
 
 
 def test_secret_wordlist_from_payloads_dir_is_used(make_ctx, payloads_dir):
-    lab_secret = "oedipus-lab-key"
+    lab_secret = "heimdall-lab-key"
     directory = payloads_dir("jwt-secrets.txt", ["# curated list", "", lab_secret, "hunter2"])
 
     findings = JwtCheck().run(

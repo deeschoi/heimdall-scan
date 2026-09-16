@@ -56,7 +56,7 @@
       "owasp_api": "API2:2023",
       "wstg": "WSTG-SESS-10",
       "must_detect": true,
-      "note": "VAmPI signs JWTs with a hardcoded HMAC secret present in payloads/jwt-secrets.txt; oedipus verifies the target's own token signature against the wordlist offline. Not toggled by vulnerable=0, so excluded from the safe-target FP control."
+      "note": "VAmPI signs JWTs with a hardcoded HMAC secret present in payloads/jwt-secrets.txt; heimdall verifies the target's own token signature against the wordlist offline. Not toggled by vulnerable=0, so excluded from the safe-target FP control."
     }
   ]
 }

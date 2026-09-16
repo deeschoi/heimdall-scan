@@ -1,11 +1,11 @@
-# VAmPI — primary API benchmark for Oedipus.
+# VAmPI — primary API benchmark for Heimdall.
 #
 # Two containers are expected to be running (see benchmarks/compose.yml):
 #   vampi-vuln  -> :5001  (vulnerable=1)   the scored target
 #   vampi-safe  -> :5002  (vulnerable=0)   must produce ZERO findings
 #
 # Ground truth lives in benchmarks/expected/vampi.json and was confirmed by
-# hand against the running container. `oedipus eval vampi` scores against it.
+# hand against the running container. `heimdall eval vampi` scores against it.
 
 name: vampi
 target: http://127.0.0.1:5001
@@ -44,10 +44,10 @@ hints:
   # BOLA: user_a owns a book carrying a canary; user_b must not be able to read it.
   bola:
     - create: { path: /books/v1, method: POST, as: user_a,
-                json: { book_title: oedipus_bola_book, secret: "OEDIPUS_CANARY_9f21a" } }
-      read:   { path: /books/v1/oedipus_bola_book, method: GET, as: user_b,
+                json: { book_title: heimdall_bola_book, secret: "HEIMDALL_CANARY_9f21a" } }
+      read:   { path: /books/v1/heimdall_bola_book, method: GET, as: user_b,
                 path_template: "/books/v1/{book_title}" }
-      canary: "OEDIPUS_CANARY_9f21a"
+      canary: "HEIMDALL_CANARY_9f21a"
 
   # Mass assignment: register honors a client-supplied admin flag.
   mass_assignment:

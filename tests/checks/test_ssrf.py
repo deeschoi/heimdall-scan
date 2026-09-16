@@ -11,9 +11,9 @@ import json
 import httpx
 import respx
 
-from oedipus.auth import Identity
-from oedipus.checks.ssrf import SsrfCheck
-from oedipus.models import Severity
+from heimdall.auth import Identity
+from heimdall.checks.ssrf import SsrfCheck
+from heimdall.models import Severity
 
 from .conftest import BASE
 

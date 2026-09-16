@@ -1,6 +1,6 @@
-# Oedipus benchmark targets.
+# Heimdall benchmark targets.
 #
-# These mirror the containers already running on this host so `oedipus eval`
+# These mirror the containers already running on this host so `heimdall eval`
 # has a reproducible way to bring them up on a fresh machine / in CI.
 #
 #   docker compose -f benchmarks/compose.yml up -d
@@ -8,7 +8,7 @@
 # VAmPI is run twice: vulnerable=1 (scored) and vulnerable=0 (false-positive
 # control). crAPI has its own large compose at crAPI-main/deploy/docker.
 services:
-  # Oedipus' OWN target (this repo). Two builds: vulnerable (scored) and
+  # Heimdall's OWN target (this repo). Two builds: vulnerable (scored) and
   # hardened (false-positive control). See vulnapp/ and suites/vulnapp.yaml.
   vulnapp-vuln:
     build:

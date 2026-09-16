@@ -11,8 +11,8 @@ import json
 import httpx
 import respx
 
-from oedipus.checks.mass_assignment import MassAssignmentCheck
-from oedipus.models import Severity
+from heimdall.checks.mass_assignment import MassAssignmentCheck
+from heimdall.models import Severity
 
 from .conftest import BASE
 

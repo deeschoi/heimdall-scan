@@ -10,9 +10,9 @@ from urllib.parse import unquote
 import httpx
 import respx
 
-from oedipus.checks.sqli import SqliCheck
-from oedipus.crawler import parse_endpoints
-from oedipus.models import Severity
+from heimdall.checks.sqli import SqliCheck
+from heimdall.crawler import parse_endpoints
+from heimdall.models import Severity
 
 from .conftest import BASE
 
@@ -102,7 +102,7 @@ def test_query_parameters_are_injected(make_ctx):
 
 @respx.mock
 def test_payload_file_overrides_the_defaults(make_ctx, payloads_dir):
-    directory = payloads_dir("sqli.txt", ["# curated", "OEDIPUS_SQLI_MARK'"])
+    directory = payloads_dir("sqli.txt", ["# curated", "HEIMDALL_SQLI_MARK'"])
     route = respx.get(url__startswith=f"{BASE}/users/v1/").mock(
         return_value=httpx.Response(500, text=SQL_ERROR)
     )
@@ -110,7 +110,7 @@ def test_payload_file_overrides_the_defaults(make_ctx, payloads_dir):
     findings = SqliCheck().run(_ctx(make_ctx, payloads_dir=directory))
 
     assert len(findings) == 1
-    assert "OEDIPUS_SQLI_MARK'" in unquote(str(route.calls.last.request.url))
+    assert "HEIMDALL_SQLI_MARK'" in unquote(str(route.calls.last.request.url))
 
 
 @respx.mock

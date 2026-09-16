@@ -8,9 +8,9 @@ object-id endpoints are left to BOLA, and denied responses are not "leaks".
 import httpx
 import respx
 
-from oedipus.checks.exposure import ExposureCheck
-from oedipus.crawler import parse_endpoints
-from oedipus.models import Severity
+from heimdall.checks.exposure import ExposureCheck
+from heimdall.crawler import parse_endpoints
+from heimdall.models import Severity
 
 from .conftest import BASE
 

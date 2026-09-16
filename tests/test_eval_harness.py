@@ -13,8 +13,8 @@ import pytest
 import respx
 import yaml
 
-from oedipus.engine import Suite
-from oedipus.eval.harness import EvalResult, evaluate, load_expected
+from heimdall.engine import Suite
+from heimdall.eval.harness import EvalResult, evaluate, load_expected
 
 VULN = "http://127.0.0.1:8000"
 SAFE = "http://127.0.0.1:8001"

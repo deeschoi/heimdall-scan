@@ -9,8 +9,8 @@ target.
 import httpx
 import pytest
 
-from oedipus.engine import Suite
-from oedipus.eval import evaluate
+from heimdall.engine import Suite
+from heimdall.eval import evaluate
 
 VAMPI = "http://127.0.0.1:5001"
 

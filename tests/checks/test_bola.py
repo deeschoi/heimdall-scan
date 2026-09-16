@@ -8,13 +8,13 @@ user_b. Any appearance of the canary proves the server skips the ownership check
 import httpx
 import respx
 
-from oedipus.auth import Identity
-from oedipus.checks.bola import BolaCheck
-from oedipus.models import Severity
+from heimdall.auth import Identity
+from heimdall.checks.bola import BolaCheck
+from heimdall.models import Severity
 
 from .conftest import BASE
 
-CANARY = "OEDIPUS_CANARY_7f3a"
+CANARY = "HEIMDALL_CANARY_7f3a"
 
 SPEC = {
     "create": {

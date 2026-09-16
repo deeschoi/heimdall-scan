@@ -1,8 +1,8 @@
-"""oedipus-vulnapp — a deliberately vulnerable multi-tenant API + UI.
+"""heimdall-vulnapp — a deliberately vulnerable multi-tenant API + UI.
 
-This is Oedipus' *own* target. Unlike the vendored third-party benchmarks
+This is Heimdall's *own* target. Unlike the vendored third-party benchmarks
 (VAmPI, crAPI), every bug here is planted on purpose and mapped 1:1 to an
-Oedipus check's oracle, so `oedipus eval vulnapp` has frozen ground truth.
+Heimdall check's oracle, so `heimdall eval vulnapp` has frozen ground truth.
 
 Two build modes, selected by the ``VULNAPP_SAFE`` env var:
 

@@ -7,8 +7,8 @@ credential captured here leaks into every artifact a scan produces.
 import httpx
 import respx
 
-from oedipus.http_client import HttpClient
-from oedipus.scope import Scope
+from heimdall.http_client import HttpClient
+from heimdall.scope import Scope
 
 BASE = "http://127.0.0.1:8000"
 

@@ -13,8 +13,8 @@ import pytest
 import respx
 import yaml
 
-from oedipus.checks import Check, ScanContext
-from oedipus.engine import Suite, scan, scan_suite
+from heimdall.checks import Check, ScanContext
+from heimdall.engine import Suite, scan, scan_suite
 
 BASE = "http://127.0.0.1:8000"
 SPEC_URL = f"{BASE}/openapi.json"
@@ -36,7 +36,7 @@ SPEC = {
 }
 
 SQL_ERROR = "sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unrecognized token"
-CANARY = "OEDIPUS_CANARY_7f3a"
+CANARY = "HEIMDALL_CANARY_7f3a"
 
 BOLA_HINT = {
     "create": {"path": "/invoices", "method": "POST", "as": "user_a",
@@ -229,8 +229,8 @@ def test_scan_deduplicates_on_fingerprint():
 
 @respx.mock
 def test_a_broken_check_does_not_abort_the_scan(monkeypatch, capsys):
-    from oedipus import engine
-    from oedipus.checks import get_check as real_get_check
+    from heimdall import engine
+    from heimdall.checks import get_check as real_get_check
 
     class Boom(Check):
         id = "boom"
@@ -280,7 +280,7 @@ def test_scan_blocks_destructive_methods_unless_unsafe():
 def test_scan_suite_forwards_spec_hints_and_payloads(tmp_path):
     payloads = tmp_path / "payloads"
     payloads.mkdir()
-    (payloads / "sqli.txt").write_text("# curated\nOEDIPUS_SQLI_MARK'\n", encoding="utf-8")
+    (payloads / "sqli.txt").write_text("# curated\nHEIMDALL_SQLI_MARK'\n", encoding="utf-8")
 
     suite_path = _write_suite(
         tmp_path,
@@ -294,7 +294,7 @@ def test_scan_suite_forwards_spec_hints_and_payloads(tmp_path):
     respx.get(f"{BASE}/users/v1/_debug").mock(
         return_value=httpx.Response(200, json={"users": [{"password": "p"}]})
     )
-    injected = respx.get(url__startswith=f"{BASE}/users/v1/OEDIPUS_SQLI_MARK").mock(
+    injected = respx.get(url__startswith=f"{BASE}/users/v1/HEIMDALL_SQLI_MARK").mock(
         return_value=httpx.Response(500, text=SQL_ERROR)
     )
 

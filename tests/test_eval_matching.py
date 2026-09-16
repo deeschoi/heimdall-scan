@@ -1,5 +1,5 @@
-from oedipus.eval.harness import _finding_key, _key
-from oedipus.models import Finding, Severity
+from heimdall.eval.harness import _finding_key, _key
+from heimdall.models import Finding, Severity
 
 
 def test_key_matches_finding_key():

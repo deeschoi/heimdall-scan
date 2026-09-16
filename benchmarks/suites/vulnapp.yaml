@@ -1,4 +1,4 @@
-# oedipus-vulnapp — Oedipus' OWN deliberately-vulnerable target.
+# heimdall-vulnapp — Heimdall's OWN deliberately-vulnerable target.
 #
 # Two builds are expected to be running (see benchmarks/compose.yml, or
 # `make vulnapp-up`):
@@ -34,11 +34,11 @@ hints:
   # BOLA: user_a owns a note carrying a canary; user_b must not be able to read it.
   bola:
     - create: { path: /api/notes, method: POST, as: user_a,
-                json: { id: oedipus_bola_note, title: q3-plan, body: internal,
-                        secret: "OEDIPUS_CANARY_ab12c" } }
-      read:   { path: /api/notes/oedipus_bola_note, method: GET, as: user_b,
+                json: { id: heimdall_bola_note, title: q3-plan, body: internal,
+                        secret: "HEIMDALL_CANARY_ab12c" } }
+      read:   { path: /api/notes/heimdall_bola_note, method: GET, as: user_b,
                 path_template: "/api/notes/{note_id}" }
-      canary: "OEDIPUS_CANARY_ab12c"
+      canary: "HEIMDALL_CANARY_ab12c"
 
   # Mass assignment: register honors a client-supplied admin flag; confirm via
   # the debug dump that the created principal is admin.

@@ -11,7 +11,7 @@ rules:
     metadata:
       cwe: CWE-915
       owasp: API6:2023
-      oedipus_severity: medium
+      heimdall_severity: medium
       references:
         - https://cwe.mitre.org/data/definitions/915.html
     patterns:

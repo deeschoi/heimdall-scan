@@ -16,17 +16,17 @@ Before writing code, assign:
 - **CVSS 3.1 vector** — score the bug as if it were real on a typical target.
 
 These four/five fields are mandatory `Check` class attributes (see any file
-in `src/oedipus/checks/` for the pattern) and appear in every report format
+in `src/heimdall/checks/` for the pattern) and appear in every report format
 (Markdown, SARIF, JSON), so get them right — they're what a reader uses to
 triage the finding.
 
 ## 2. Implement the `Check`
 
-Subclass `oedipus.checks.Check` in a new module under `src/oedipus/checks/`:
+Subclass `heimdall.checks.Check` in a new module under `src/heimdall/checks/`:
 
 ```python
-from oedipus.checks import Check, ScanContext, register
-from oedipus.models import Finding, Severity
+from heimdall.checks import Check, ScanContext, register
+from heimdall.models import Finding, Severity
 
 @register
 class MyCheck(Check):
@@ -52,7 +52,7 @@ class MyCheck(Check):
 - Swallow connection/parsing errors and return no finding rather than
   raising — a broken probe is silence, not a crash.
 - Register the module in `load_builtin_checks()` in
-  `src/oedipus/checks/__init__.py`.
+  `src/heimdall/checks/__init__.py`.
 - Implement `replay()`/`oracle()` if the default re-request-and-reoracle
   behavior in the base class isn't enough (most checks don't need to
   override it).
@@ -95,13 +95,13 @@ For each suite where the new check applies:
    ```
 
 3. Only set `must_detect: true` for what you personally reproduced — that's
-   what keeps `oedipus eval`'s recall number honest. Leave `must_detect:
+   what keeps `heimdall eval`'s recall number honest. Leave `must_detect:
    false` placeholder rows commented with what's still unverified rather
    than guessing.
 4. If the suite has a hardened/safe build (like `vulnapp`'s
    `VULNAPP_SAFE=1`), confirm the new check produces zero findings there too
    — add it to the suite's `safe_checks` list if it isn't already covered.
-5. Run `oedipus eval <suite>` and confirm precision/recall/F1.
+5. Run `heimdall eval <suite>` and confirm precision/recall/F1.
 
 ## 5. Add a lookalike route (if you're also touching `vulnapp/`)
 
@@ -114,25 +114,25 @@ zero-false-positive claim keeps meaning something.
 ## Adding a Semgrep (SAST) rule
 
 Static rules live in `semgrep-rules/*.yaml` and are picked up automatically —
-`oedipus sast` runs every file in that directory. Each rule's `metadata`
+`heimdall sast` runs every file in that directory. Each rule's `metadata`
 block carries the same standards mapping as a `Check`:
 
 ```yaml
 rules:
   - id: my-rule
     languages: [python]
-    severity: ERROR   # maps to Severity.HIGH unless oedipus_severity overrides it
+    severity: ERROR   # maps to Severity.HIGH unless heimdall_severity overrides it
     message: "..."    # becomes the Finding's description
     metadata:
-      cwe: CWE-...            # required — this is the join key for `oedipus correlate`
+      cwe: CWE-...            # required — this is the join key for `heimdall correlate`
       owasp: API...:2023
-      oedipus_severity: high  # optional; overrides the ERROR/WARNING/INFO -> Severity mapping
+      heimdall_severity: high  # optional; overrides the ERROR/WARNING/INFO -> Severity mapping
     pattern: ...
 ```
 
 - If the CWE matches an existing `Check`'s CWE, add its WSTG/CVSS to
-  `_CWE_STANDARDS` in `src/oedipus/sast/__init__.py` so SAST findings carry
-  the same standards mapping and `oedipus correlate` can join them.
+  `_CWE_STANDARDS` in `src/heimdall/sast/__init__.py` so SAST findings carry
+  the same standards mapping and `heimdall correlate` can join them.
 - Test against a synthetic snippet with `semgrep --config semgrep-rules/my-rule.yaml /tmp/x.py`
   before wiring it up — YAML pattern strings containing `:` or `{}` usually
   need quoting (see the existing rules for examples).
@@ -143,7 +143,7 @@ rules:
 - Add or extend `tests/integration/test_sast_against_vulnapp.py` to assert
   the new CWE shows up when scanning `vulnapp/`, and — if the rule targets
   one specific route — that it resolves to the right `(method, path)` via
-  `oedipus.sast.routes`.
+  `heimdall.sast.routes`.
 
 ## Style notes
 

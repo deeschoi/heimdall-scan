@@ -1,4 +1,4 @@
-"""Regression for the SAST layer against Oedipus' own vulnerable app.
+"""Regression for the SAST layer against Heimdall's own vulnerable app.
 
 Unlike ``test_against_vulnapp.py`` this needs no running server: Semgrep
 scans ``vulnapp/app.py`` as source. Auto-skips if the real ``semgrep`` binary
@@ -17,14 +17,14 @@ pytest.importorskip("semgrep", reason="sast extra not installed")
 if shutil.which("semgrep") is None:
     pytest.skip("semgrep binary not on PATH", allow_module_level=True)
 
-from oedipus.sast import scan_source  # noqa: E402
+from heimdall.sast import scan_source  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 RULES = ROOT / "semgrep-rules"
 SRC = ROOT / "vulnapp"
 
 # One rule hit per planted, statically-visible bug. BOLA and excessive data
-# exposure are intentionally absent -- see oedipus/sast/__init__.py's
+# exposure are intentionally absent -- see heimdall/sast/__init__.py's
 # docstring for why those two are DAST-only.
 _EXPECTED_CWES = {"CWE-89", "CWE-347", "CWE-915", "CWE-918"}
 

@@ -1,4 +1,4 @@
-from oedipus.crawler import parse_endpoints, fill_path
+from heimdall.crawler import parse_endpoints, fill_path
 
 SPEC = {
     "paths": {

@@ -1,6 +1,6 @@
-from oedipus import sast
-from oedipus.models import Severity
-from oedipus.sast.routes import Route, RouteIndex
+from heimdall import sast
+from heimdall.models import Severity
+from heimdall.sast.routes import Route, RouteIndex
 
 
 def _index():
@@ -10,10 +10,10 @@ def _index():
     )
 
 
-def _result(rule_id="jwt-hardcoded-secret", cwe="CWE-347", severity="ERROR", line=46, oedipus_severity=None):
+def _result(rule_id="jwt-hardcoded-secret", cwe="CWE-347", severity="ERROR", line=46, heimdall_severity=None):
     metadata = {"cwe": cwe, "owasp": "API2:2023"}
-    if oedipus_severity:
-        metadata["oedipus_severity"] = oedipus_severity
+    if heimdall_severity:
+        metadata["heimdall_severity"] = heimdall_severity
     return {
         "check_id": f"semgrep-rules.{rule_id}",
         "path": "app.py",
@@ -40,7 +40,7 @@ def test_cwe_standards_are_backfilled_from_table():
 
 
 def test_severity_prefers_rule_metadata_override():
-    f = sast._finding_from_result(_result(severity="ERROR", oedipus_severity="medium"), _index())
+    f = sast._finding_from_result(_result(severity="ERROR", heimdall_severity="medium"), _index())
     assert f.severity == Severity.MEDIUM
 
 
