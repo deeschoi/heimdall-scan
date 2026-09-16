@@ -1,5 +1,9 @@
 # Heimdall
 
+<p align = "center">
+  <img src = "docs/Heimdall.jpeg" alt = "Heimdall" width = "600">
+</p>
+
 An API-focused DAST CLI where **every finding is a deterministic, replayable
 check**. Exploration can be heuristic (and later LLM-assisted), but a finding is
 only emitted when a matcher fires and its evidence request can be replayed.
