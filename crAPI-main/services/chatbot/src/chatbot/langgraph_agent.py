@@ -79,8 +79,5 @@ async def execute_langgraph_agent(
     api_key, model_name, messages, user_jwt, session_id=None
 ):
     agent = await build_langgraph_agent(api_key, model_name, user_jwt)
-    print("messages", messages)
-    print("Session ID", session_id)
     response = await agent.ainvoke({"messages": messages})
-    print("Response", response)
     return response

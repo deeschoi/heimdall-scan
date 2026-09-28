@@ -1,0 +1,307 @@
+{
+  "tool": "heimdall",
+  "version": "0.1.0",
+  "target": "http://127.0.0.1:8000",
+  "summary": {
+    "high": 6,
+    "critical": 1,
+    "total": 7
+  },
+  "findings": [
+    {
+      "check_id": "sqli",
+      "title": "Error-based SQL injection",
+      "severity": "high",
+      "cwe": "CWE-89",
+      "owasp_api": "API8:2023",
+      "wstg": "WSTG-INPV-05",
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+      "method": "GET",
+      "path_template": "/api/products/search",
+      "url": "http://127.0.0.1:8000/api/products/search",
+      "description": "A database error was returned when injecting SQL metacharacters, indicating unsanitized input is concatenated into a query.",
+      "remediation": "Use parameterized queries / an ORM binding; never string-format SQL.",
+      "evidence": [
+        {
+          "request_method": "GET",
+          "request_url": "http://127.0.0.1:8000/api/products/search?q=%27",
+          "request_headers": {
+            "host": "127.0.0.1:8000",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate",
+            "connection": "keep-alive",
+            "user-agent": "python-httpx/0.28.1"
+          },
+          "request_body": null,
+          "response_status": 500,
+          "response_headers": {
+            "date": "Sun, 20 Sep 2026 20:29:41 GMT",
+            "server": "uvicorn",
+            "content-length": "63",
+            "content-type": "application/json"
+          },
+          "response_body_excerpt": "{\"error\":\"sqlite3.OperationalError: unrecognized token: \\\"'\\\"\"}",
+          "matcher": "SQL error signature: 'sqlite3.OperationalError' (payload=\"'\")",
+          "note": ""
+        }
+      ],
+      "asvs": "5.3.4",
+      "fingerprint": "d1461dd77a48"
+    },
+    {
+      "check_id": "exposure",
+      "title": "Excessive data exposure of sensitive fields",
+      "severity": "high",
+      "cwe": "CWE-200",
+      "owasp_api": "API3:2023",
+      "wstg": "WSTG-ATHZ-04",
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+      "method": "GET",
+      "path_template": "/api/debug/users",
+      "url": "http://127.0.0.1:8000/api/debug/users",
+      "description": "The endpoint returns object fields that should never be serialized to clients: ['password', 'token'].",
+      "remediation": "Return an explicit response schema; strip secrets server-side.",
+      "evidence": [
+        {
+          "request_method": "GET",
+          "request_url": "http://127.0.0.1:8000/api/debug/users",
+          "request_headers": {
+            "host": "127.0.0.1:8000",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate",
+            "connection": "keep-alive",
+            "user-agent": "python-httpx/0.28.1"
+          },
+          "request_body": null,
+          "response_status": 200,
+          "response_headers": {
+            "date": "Sun, 20 Sep 2026 20:29:42 GMT",
+            "server": "uvicorn",
+            "content-length": "3231",
+            "content-type": "application/json"
+          },
+          "response_body_excerpt": "{\"users\":[{\"username\":\"alice\",\"password\":\"alice-pw-9f2\",\"email\":\"alice@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_alice_7c1\"},{\"username\":\"bob\",\"password\":\"bob-pw-3a8\",\"email\":\"bob@acme.example\",\"tenant\":\"acme\",\"admin\":false,\"token\":\"tok_bob_4d2\"},{\"username\":\"carol\",\"password\":\"carol-pw-5e0\",\"email\":\"carol@globex.example\",\"tenant\":\"globex\",\"admin\":false,\"token\":\"tok_carol_9b7\"},{\"username\":\"oed_user_a\",\"password\":\"pw_a_123\",\"email\":\"a@acme.example\",\"tenant\":\"acme\",\"admin\":false,\"token\":\"tok_62112395\"},{\"username\":\"oed_user_b\",\"password\":\"pw_b_123\",\"email\":\"b@acme.example\",\"tenant\":\"acme\",\"admin\":false,\"token\":\"tok_9474240e\"},{\"username\":\"81dd229d82\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_527119ef\"},{\"username\":\"a1266d7d99\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_64659149\"},{\"username\":\"53879d49fc\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_9e68f45c\"},{\"username\":\"750ebde3a2\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_afbbf5e6\"},{\"username\":\"0fff0a3f63\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_d673dd99\"},{\"username\":\"8109b2aa58\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_892e7db6\"},{\"username\":\"66d1e8c21b\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_a0c4c3d6\"},{\"username\":\"e353ecdc4f\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_2e2f081e\"},{\"username\":\"926da849d1\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_5a818b11\"},{\"username\":\"3f5f6caf6a\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_8699b662\"},{\"username\":\"1a4a13723f\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_4d1be995\"},{\"username\":\"20d439f5a2\",\"password\":\"pw123\",\"ema",
+          "matcher": "Response exposes sensitive field(s): ['password', 'token']",
+          "note": ""
+        }
+      ],
+      "asvs": "8.3.4",
+      "fingerprint": "0b6f2160cee7"
+    },
+    {
+      "check_id": "mass_assignment",
+      "title": "Mass assignment enables privilege escalation",
+      "severity": "high",
+      "cwe": "CWE-915",
+      "owasp_api": "API6:2023",
+      "wstg": "WSTG-BUSL-08",
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+      "method": "POST",
+      "path_template": "/api/register",
+      "url": "http://127.0.0.1:8000/api/register",
+      "description": "A create endpoint honored a privileged attribute supplied by the client, allowing self-granted elevated privileges.",
+      "remediation": "Bind requests to an explicit input schema; never mass-assign models.",
+      "evidence": [
+        {
+          "request_method": "GET",
+          "request_url": "http://127.0.0.1:8000/api/debug/users",
+          "request_headers": {
+            "host": "127.0.0.1:8000",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate",
+            "connection": "keep-alive",
+            "user-agent": "python-httpx/0.28.1"
+          },
+          "request_body": null,
+          "response_status": 200,
+          "response_headers": {
+            "date": "Sun, 20 Sep 2026 20:29:43 GMT",
+            "server": "uvicorn",
+            "content-length": "3354",
+            "content-type": "application/json"
+          },
+          "response_body_excerpt": "{\"users\":[{\"username\":\"alice\",\"password\":\"alice-pw-9f2\",\"email\":\"alice@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_alice_7c1\"},{\"username\":\"bob\",\"password\":\"bob-pw-3a8\",\"email\":\"bob@acme.example\",\"tenant\":\"acme\",\"admin\":false,\"token\":\"tok_bob_4d2\"},{\"username\":\"carol\",\"password\":\"carol-pw-5e0\",\"email\":\"carol@globex.example\",\"tenant\":\"globex\",\"admin\":false,\"token\":\"tok_carol_9b7\"},{\"username\":\"oed_user_a\",\"password\":\"pw_a_123\",\"email\":\"a@acme.example\",\"tenant\":\"acme\",\"admin\":false,\"token\":\"tok_62112395\"},{\"username\":\"oed_user_b\",\"password\":\"pw_b_123\",\"email\":\"b@acme.example\",\"tenant\":\"acme\",\"admin\":false,\"token\":\"tok_9474240e\"},{\"username\":\"81dd229d82\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_527119ef\"},{\"username\":\"a1266d7d99\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_64659149\"},{\"username\":\"53879d49fc\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_9e68f45c\"},{\"username\":\"750ebde3a2\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_afbbf5e6\"},{\"username\":\"0fff0a3f63\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_d673dd99\"},{\"username\":\"8109b2aa58\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_892e7db6\"},{\"username\":\"66d1e8c21b\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_a0c4c3d6\"},{\"username\":\"e353ecdc4f\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_2e2f081e\"},{\"username\":\"926da849d1\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_5a818b11\"},{\"username\":\"3f5f6caf6a\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_8699b662\"},{\"username\":\"1a4a13723f\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"tenant\":\"acme\",\"admin\":true,\"token\":\"tok_4d1be995\"},{\"username\":\"20d439f5a2\",\"password\":\"pw123\",\"ema",
+          "matcher": "Created principal '62cadc298e' shows admin=True",
+          "note": ""
+        },
+        {
+          "request_method": "POST",
+          "request_url": "http://127.0.0.1:8000/api/register",
+          "request_headers": {
+            "host": "127.0.0.1:8000",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate",
+            "connection": "keep-alive",
+            "user-agent": "python-httpx/0.28.1",
+            "content-length": "83",
+            "content-type": "application/json"
+          },
+          "request_body": "{\"username\":\"62cadc298e\",\"password\":\"pw123\",\"email\":\"ma@acme.example\",\"admin\":true}",
+          "response_status": 200,
+          "response_headers": {
+            "date": "Sun, 20 Sep 2026 20:29:42 GMT",
+            "server": "uvicorn",
+            "content-length": "64",
+            "content-type": "application/json"
+          },
+          "response_body_excerpt": "{\"username\":\"62cadc298e\",\"email\":\"ma@acme.example\",\"admin\":true}",
+          "matcher": "Injected privileged field via create: {'admin': True}",
+          "note": ""
+        }
+      ],
+      "asvs": "5.1.2",
+      "fingerprint": "e53b0abcab5c"
+    },
+    {
+      "check_id": "bola",
+      "title": "Broken object level authorization (IDOR)",
+      "severity": "high",
+      "cwe": "CWE-639",
+      "owasp_api": "API1:2023",
+      "wstg": "WSTG-ATHZ-04",
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N",
+      "method": "GET",
+      "path_template": "/api/notes/{note_id}",
+      "url": "http://127.0.0.1:8000/api/notes/heimdall_bola_note",
+      "description": "An object owned by one principal was readable by another; the server performs no object-level ownership check.",
+      "remediation": "Enforce per-object ownership checks on every read/write path.",
+      "evidence": [
+        {
+          "request_method": "GET",
+          "request_url": "http://127.0.0.1:8000/api/notes/heimdall_bola_note",
+          "request_headers": {
+            "host": "127.0.0.1:8000",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate",
+            "connection": "keep-alive",
+            "user-agent": "python-httpx/0.28.1"
+          },
+          "request_body": null,
+          "response_status": 200,
+          "response_headers": {
+            "date": "Sun, 20 Sep 2026 20:29:43 GMT",
+            "server": "uvicorn",
+            "content-length": "133",
+            "content-type": "application/json"
+          },
+          "response_body_excerpt": "{\"id\":\"heimdall_bola_note\",\"title\":\"q3-plan\",\"body\":\"internal\",\"secret\":\"HEIMDALL_CANARY_ab12c\",\"owner\":\"oed_user_a\",\"tenant\":\"acme\"}",
+          "matcher": "Cross-tenant canary 'HEIMDALL_CANARY_ab12c' leaked to identity 'user_b'",
+          "note": "canary=HEIMDALL_CANARY_ab12c"
+        }
+      ],
+      "asvs": "4.2.1",
+      "fingerprint": "70ebdcb9f647"
+    },
+    {
+      "check_id": "jwt",
+      "title": "JWT signed with a weak, guessable secret",
+      "severity": "high",
+      "cwe": "CWE-347",
+      "owasp_api": "API2:2023",
+      "wstg": "WSTG-SESS-10",
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+      "method": "POST",
+      "path_template": "(login)",
+      "url": "http://127.0.0.1:8000",
+      "description": "The HMAC secret is guessable, so any token can be forged.",
+      "remediation": "Use a long random secret from a secrets manager; rotate it.",
+      "evidence": [
+        {
+          "request_method": "-",
+          "request_url": "http://127.0.0.1:8000",
+          "request_headers": {},
+          "request_body": null,
+          "response_status": null,
+          "response_headers": {},
+          "response_body_excerpt": null,
+          "matcher": "Token signature verifies with guessable secret 'changeme'",
+          "note": "Signature verified offline against a wordlist."
+        }
+      ],
+      "asvs": "3.5.3",
+      "fingerprint": "10d043a768b7"
+    },
+    {
+      "check_id": "jwt",
+      "title": "JWT 'alg=none' accepted on a protected endpoint",
+      "severity": "critical",
+      "cwe": "CWE-347",
+      "owasp_api": "API2:2023",
+      "wstg": "WSTG-SESS-10",
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+      "method": "GET",
+      "path_template": "/api/me",
+      "url": "http://127.0.0.1:8000/api/me",
+      "description": "An unsigned token was accepted, allowing trivial impersonation.",
+      "remediation": "Pin an allowlist of signing algorithms; reject 'none'.",
+      "evidence": [
+        {
+          "request_method": "GET",
+          "request_url": "http://127.0.0.1:8000/api/me",
+          "request_headers": {
+            "host": "127.0.0.1:8000",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate",
+            "connection": "keep-alive",
+            "user-agent": "python-httpx/0.28.1"
+          },
+          "request_body": null,
+          "response_status": 200,
+          "response_headers": {
+            "date": "Sun, 20 Sep 2026 20:29:43 GMT",
+            "server": "uvicorn",
+            "content-length": "55",
+            "content-type": "application/json"
+          },
+          "response_body_excerpt": "{\"username\":\"oed_user_a\",\"tenant\":\"acme\",\"admin\":false}",
+          "matcher": "alg=none token accepted (HTTP 200)",
+          "note": ""
+        }
+      ],
+      "asvs": "3.5.3",
+      "fingerprint": "95b0292b6b59"
+    },
+    {
+      "check_id": "ssrf",
+      "title": "Server-side request forgery",
+      "severity": "high",
+      "cwe": "CWE-918",
+      "owasp_api": "API7:2023",
+      "wstg": "WSTG-INPV-19",
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:L/A:N",
+      "method": "POST",
+      "path_template": "/api/url-preview",
+      "url": "http://127.0.0.1:8000/api/url-preview",
+      "description": "A URL parameter caused the server to fetch an attacker-controlled internal resource.",
+      "remediation": "Validate against an egress allowlist; block link-local/RFC1918; disable redirects.",
+      "evidence": [
+        {
+          "request_method": "POST",
+          "request_url": "http://127.0.0.1:8000/api/url-preview",
+          "request_headers": {
+            "host": "127.0.0.1:8000",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate",
+            "connection": "keep-alive",
+            "user-agent": "python-httpx/0.28.1",
+            "content-length": "58",
+            "content-type": "application/json"
+          },
+          "request_body": "{\"url\":\"http://127.0.0.1:8000/internal/latest/meta-data/\"}",
+          "response_status": 200,
+          "response_headers": {
+            "date": "Sun, 20 Sep 2026 20:29:43 GMT",
+            "server": "uvicorn",
+            "content-length": "184",
+            "content-type": "application/json"
+          },
+          "response_body_excerpt": "{\"url\":\"http://127.0.0.1:8000/internal/latest/meta-data/\",\"status\":200,\"body\":\"ami-id\\nami-launch-index\\nhostname\\niam/security-credentials/\\ninstance-id\\ninstance-type\\nlocal-ipv4\\n\"}",
+          "matcher": "Injected canary reflected in response: 'ami-id'",
+          "note": ""
+        }
+      ],
+      "asvs": "12.6.1",
+      "fingerprint": "4b7a63f34a1d"
+    }
+  ]
+}

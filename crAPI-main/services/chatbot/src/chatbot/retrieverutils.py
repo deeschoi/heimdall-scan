@@ -59,7 +59,6 @@ def add_to_chroma_collection(
     api_key, session_id, new_messages: list[dict[str, str]]
 ) -> list:
     vectorstore = get_chroma_vectorstore(api_key)
-    print("new_messages", new_messages)
     # new_messages = [{'user': 'hi'}, {'assistant': 'Hello! How can I assist you today?'}]
     documents = []
     for message in new_messages:
@@ -70,7 +69,6 @@ def add_to_chroma_collection(
                     metadata={"session_id": session_id, "role": role},
                 )
             )
-    print("documents", documents)
     res: list = vectorstore.add_documents(documents=documents)
     return res
 

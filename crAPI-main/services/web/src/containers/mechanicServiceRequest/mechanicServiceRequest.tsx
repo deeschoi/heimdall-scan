@@ -40,7 +40,6 @@ type PropsFromRedux = ConnectedProps<typeof connector>;
 const MechanicServiceRequestContainer: React.FC<PropsFromRedux> = () => {
   const urlParams = new URLSearchParams(window.location.search);
   const serviceId = urlParams.get("id") || "";
-  console.log("Service ID", serviceId);
 
   return <MechanicServiceRequest serviceId={serviceId} />;
 };

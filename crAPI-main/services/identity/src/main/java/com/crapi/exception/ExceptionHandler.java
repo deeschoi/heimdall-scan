@@ -59,16 +59,6 @@ public class ExceptionHandler extends ResponseEntityExceptionHandler {
     return new ResponseEntity<Object>(cr, HttpStatus.LOCKED);
   }
 
-  // @org.springframework.web.bind.annotation.ExceptionHandler({MethodArgumentNotValidException.class})
-  // public ResponseEntity<String> handleMethodArgumentNotValid(
-  //     MethodArgumentNotValidException ex,
-  //     HttpHeaders headers,
-  //     HttpStatus status,
-  //     WebRequest request) {
-  //   // ErrorDetails errorDetails =
-  //   //    new ErrorDetails(, );
-  //   return ResponseEntity.status(INTERNAL_SERVER_ERROR).body("Validation Failed");
-  // }
 
   @Override
   @ResponseBody

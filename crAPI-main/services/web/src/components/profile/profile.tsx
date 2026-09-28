@@ -108,7 +108,6 @@ const Profile: React.FC<PropsFromRedux> = (props) => {
       if (res === responseTypes.SUCCESS) {
         setVideoData(data.profileVideo);
       } else {
-        console.log("Error getting video", data);
       }
     };
     getVideo({
@@ -221,7 +220,6 @@ const Profile: React.FC<PropsFromRedux> = (props) => {
   };
 
   const takeVideoAction: MenuProps["onClick"] = (e) => {
-    console.log("Video Action", e);
     if (e.key === "1" && videoInputRef.current) videoInputRef.current.click();
     if (e.key === "2") setIsVideoModalOpen(true);
     if (e.key === "3") shareVideoWithCommunity(profileData.videoId || "");

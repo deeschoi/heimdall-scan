@@ -77,8 +77,6 @@ const Forum: React.FC<ForumProps> = (props) => {
     <Avatar src={url || defaultProficPic} size="large" />
   );
 
-  console.log("Prev offset", prevOffset);
-  console.log("Next offset", nextOffset);
 
   const handleNewPostClick = () => {
     navigate("/new-post");

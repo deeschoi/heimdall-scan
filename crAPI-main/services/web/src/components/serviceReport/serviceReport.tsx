@@ -66,7 +66,6 @@ interface ServiceReportProps {
 
 const ServiceReport: React.FC<ServiceReportProps> = ({ service }) => {
   if (!service) {
-    console.log("Service is undefined");
     return (
       <div className="loading-container">
         <Spin size="large" />

@@ -62,11 +62,9 @@ const VehicleServiceDashboardContainer: React.FC<PropsFromRedux> = ({
   const [services, setServices] = useState<Service[]>([]);
   const urlParams = new URLSearchParams(window.location.search);
   const VIN = urlParams.get("VIN");
-  console.log("VIN", VIN);
 
   useEffect(() => {
     const callback = (status: string, data: Service[] | string) => {
-      console.log("Callback", status, data);
       if (status === responseTypes.SUCCESS) {
         setServices(data as Service[]);
       } else {
@@ -76,7 +74,6 @@ const VehicleServiceDashboardContainer: React.FC<PropsFromRedux> = ({
         });
       }
     };
-    console.log("getVehicleServiceHistory", accessToken, VIN, callback);
     getVehicleServiceHistory({ accessToken, VIN, callback });
   }, [accessToken, getVehicleServiceHistory, VIN]);
 

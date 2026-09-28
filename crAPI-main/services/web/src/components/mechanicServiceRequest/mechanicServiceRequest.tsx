@@ -93,8 +93,6 @@ const MechanicServiceRequest: React.FC<PropsFromRedux> = (props) => {
   useEffect(() => {
     const callback = (res: string, data: Service) => {
       if (res === responseTypes.SUCCESS) {
-        console.log("Data", data);
-        console.log("res", res);
         setService(data as Service);
       } else {
         Modal.error({
@@ -109,7 +107,6 @@ const MechanicServiceRequest: React.FC<PropsFromRedux> = (props) => {
   const [form] = Form.useForm();
   function handleAddComment(): void {
     const comment = form.getFieldValue("comment");
-    console.log("Comment", comment);
     createComment({
       accessToken: accessToken || "",
       serviceId: service?.id || "",
@@ -134,7 +131,6 @@ const MechanicServiceRequest: React.FC<PropsFromRedux> = (props) => {
   }
 
   function handleStatusChange(value: string): void {
-    console.log("Status changed to", value);
     updateServiceRequestStatus({
       accessToken: accessToken || "",
       serviceId: service?.id || "",
@@ -148,7 +144,6 @@ const MechanicServiceRequest: React.FC<PropsFromRedux> = (props) => {
   }
 
   if (!service) {
-    console.log("Service is undefined");
     return (
       <Content>
         <Spin
@@ -163,7 +158,6 @@ const MechanicServiceRequest: React.FC<PropsFromRedux> = (props) => {
     );
   }
 
-  console.log("Comments ", service?.comments);
 
   return (
     <Layout className="page-container">

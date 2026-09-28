@@ -74,11 +74,9 @@ const ServiceReportContainer: React.FC<PropsFromRedux> = ({
   const [service, setService] = useState<Service>();
   const urlParams = new URLSearchParams(window.location.search);
   const reportId = urlParams.get("id");
-  console.log("reportId", reportId);
 
   useEffect(() => {
     const callback = (res: string, data: Service | string) => {
-      console.log("Callback", res, data);
       if (res === responseTypes.SUCCESS) {
         setService(data as Service);
       } else {
@@ -88,7 +86,6 @@ const ServiceReportContainer: React.FC<PropsFromRedux> = ({
         });
       }
     };
-    console.log("getServiceReport", accessToken, reportId, callback);
     getServiceReport({ accessToken, reportId, callback });
   }, [accessToken, getServiceReport, reportId]);
 
