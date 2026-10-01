@@ -94,7 +94,6 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
         .set("Authorization", `Bearer ${props.accessToken}`)
         .send({ openai_api_key: apiKey });
 
-      console.log("Initialization response:", response.body);
       return response.body.success || response.status === 200;
     } catch (err) {
       console.error("Error initializing chatbot:", err);
@@ -112,7 +111,6 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
         .set("Content-Type", "application/json")
         .set("Authorization", `Bearer ${props.accessToken}`);
 
-      console.log("Chat history response:", response.body);
       return response.body.chat_history || [];
     } catch (err) {
       console.error("Error fetching chat history:", err);
@@ -131,7 +129,6 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
         .set("Authorization", `Bearer ${props.accessToken}`)
         .send();
 
-      console.log("Chat history cleared");
       return true;
     } catch (err) {
       console.error("Error clearing chat history:", err);
@@ -143,8 +140,6 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
   const handleUserMessage = async (message: string) => {
     try {
       const chatUrl = APIService.CHATBOT_SERVICE + "genai/ask";
-      console.log("Sending message to:", chatUrl);
-      console.log("Message:", message);
 
       const response = await superagent
         .post(chatUrl)
@@ -153,7 +148,6 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
         .set("Authorization", `Bearer ${props.accessToken}`)
         .send({ message });
 
-      console.log("API Response:", response.body);
 
       // Check different possible response formats
       let botResponse = "";
@@ -168,18 +162,10 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
       } else if (typeof response.body === "string") {
         botResponse = response.body;
       } else {
-        console.log("Unexpected response format:", response.body);
         botResponse =
           "I received your message but couldn't process the response format. Please try again.";
       }
 
-      console.log("Bot response to render:", botResponse);
-      console.log(
-        "Testing markdown in response:",
-        botResponse.includes("**") ||
-          botResponse.includes("*") ||
-          botResponse.includes("#"),
-      );
       return botResponse;
     } catch (err) {
       console.error("Error in chat API:", err);
@@ -218,7 +204,6 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
           if (isInitialized) {
             // Fetch and display chat history
             const chatHistory = await fetchChatHistory();
-            console.log("Chat history:", chatHistory);
             setChatbotState((prev) => ({
               ...prev,
               messages: chatHistory,
@@ -498,7 +483,6 @@ What would you like to do next?`);
 
   // Initialize component
   useEffect(() => {
-    console.log("ChatBot component initialized");
   }, [props.accessToken, props.isLoggedIn]);
 
   return (

@@ -39,7 +39,6 @@ interface ReceivedResponse extends Response {
  * offset : offset for the posts
  */
 export function* getPosts(action: MyAction): Generator<any, void, any> {
-  console.log("getPosts", action);
   const { accessToken, callback, offset = 0 } = action.payload;
   let receivedResponse: ReceivedResponse = {} as ReceivedResponse;
   try {

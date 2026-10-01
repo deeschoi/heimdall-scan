@@ -99,7 +99,6 @@ const userReducer = (
         role: maction.payload.role,
       };
     case actionTypes.LOG_OUT:
-      console.log("Logged out");
       return initialData;
     case actionTypes.INVALID_SESSION:
       return initialData;

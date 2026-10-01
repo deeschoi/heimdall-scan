@@ -25,17 +25,13 @@ interface Payload {
 
 export const authInterceptor: Middleware = (api) => (next) => (action) => {
   // Check if the action is of type FETCHED_DATA
-  console.log("authInterceptor", action);
   const fetchedDataAction = action as { type: string; payload: Payload };
-  console.log("fetchedDataAction", fetchedDataAction);
   if (fetchedDataAction.type === actionTypes.FETCHED_DATA) {
     // Type assertion to ensure action is of the expected type
     // Check if the status is 401 (Unauthorized)
     if (fetchedDataAction.payload.status === 401) {
-      console.log("invalidSessionAction");
       next(invalidSessionAction());
     }
   }
-  console.log("next", action);
   next(action);
 };
