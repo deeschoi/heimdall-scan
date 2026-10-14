@@ -19,6 +19,22 @@ from heimdall.models import Finding
 
 
 @dataclass
+class TraceEvent:
+    """One line of the scan transcript.
+
+    ``kind`` is ``check`` (engine, the check id as a header), ``step`` (what
+    the check is about to try), ``miss``, or ``hit``. ``verbose`` lines are
+    per-payload detail and stay out of the default transcript.
+    """
+
+    check_id: str
+    kind: str
+    text: str = ""
+    finding: Optional[Finding] = None
+    verbose: bool = False
+
+
+@dataclass
 class ScanContext:
     base_url: str
     client: HttpClient
@@ -26,9 +42,32 @@ class ScanContext:
     identities: dict[str, Identity] = field(default_factory=dict)
     payloads_dir: Optional[Path] = None
     extras: dict = field(default_factory=dict)  # suite-specific hints
+    on_trace: Optional[Callable[["TraceEvent"], None]] = None
+    check_id: str = ""
 
     def url(self, path: str) -> str:
         return self.base_url.rstrip("/") + path
+
+    def trace(
+        self,
+        kind: str,
+        text: str = "",
+        *,
+        finding: Optional[Finding] = None,
+        verbose: bool = False,
+    ) -> None:
+        """Record a transcript line. No-op when the scan did not ask for one."""
+        if self.on_trace is None:
+            return
+        self.on_trace(
+            TraceEvent(
+                check_id=self.check_id,
+                kind=kind,
+                text=text,
+                finding=finding,
+                verbose=verbose,
+            )
+        )
 
     def load_payloads(self, name: str) -> list[str]:
         """Load a payload file (comment lines starting with '#' are ignored)."""
