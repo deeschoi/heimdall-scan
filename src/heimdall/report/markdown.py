@@ -2,18 +2,30 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
+from heimdall.checks import TraceEvent
 from heimdall.models import Finding, Severity
+from heimdall.report.trace import markdown_section
 
 _ORDER = [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO]
 
 
-def render(findings: list[Finding], target: str = "") -> str:
+def render(
+    findings: list[Finding],
+    target: str = "",
+    trace: Optional[list[TraceEvent]] = None,
+) -> str:
     lines: list[str] = []
     lines.append("# Heimdall scan report")
     lines.append("")
     lines.append(f"**Target:** `{target}`  ")
     lines.append(f"**Findings:** {len(findings)}")
     lines.append("")
+    section = markdown_section(trace)
+    if section:
+        lines.append(section.rstrip("\n"))
+        lines.append("")
     lines.append("| Severity | Check | Endpoint | CWE | OWASP API | WSTG |")
     lines.append("|---|---|---|---|---|---|")
     for f in sorted(findings, key=lambda x: -x.severity.rank):
