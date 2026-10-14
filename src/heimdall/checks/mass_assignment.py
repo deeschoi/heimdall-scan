@@ -47,6 +47,12 @@ class MassAssignmentCheck(Check):
     def _probe(self, ctx: ScanContext, spec: dict):
         create = spec["create"]
         confirm = spec["confirm"]
+        escalated_fields = create.get("escalate") or {}
+        shown = ", ".join(f"`{k}={v}`" for k, v in escalated_fields.items()) or "a privileged field"
+        ctx.trace(
+            "step",
+            f"{create.get('method', 'POST')} {create['path']} injecting {shown}.",
+        )
         rand = uuid.uuid4().hex[:10]
         base = {k: (rand if v == "__RAND__" else v) for k, v in create.get("base", {}).items()}
         payload = dict(base)
@@ -60,15 +66,18 @@ class MassAssignmentCheck(Check):
                 allow_destructive=True,
             )
         except Exception:
+            ctx.trace("miss", "request failed.")
             return None
 
         confirm_url = ctx.url(confirm["path"])
         try:
             confirm_resp = ctx.client.request(confirm.get("method", "GET"), confirm_url)
         except Exception:
+            ctx.trace("miss", "request failed.")
             return None
 
         if not self._escalated(confirm_resp.text, marker, confirm):
+            ctx.trace("miss", "privileged field did not stick.")
             return None
 
         ev_confirm = ctx.client.evidence_from(
@@ -81,7 +90,7 @@ class MassAssignmentCheck(Check):
         ev_create = ctx.client.evidence_from(
             create_resp, matcher=f"Injected privileged field via create: {create.get('escalate')}"
         )
-        return Finding(
+        finding = Finding(
             check_id=self.id,
             title=self.title,
             severity=Severity.HIGH,
@@ -100,6 +109,13 @@ class MassAssignmentCheck(Check):
             remediation="Bind requests to an explicit input schema; never mass-assign models.",
             evidence=[ev_confirm, ev_create],
         )
+        field_name = confirm["privileged_field"]
+        ctx.trace(
+            "hit",
+            f"{field_name}={confirm['privileged_value']!r} stuck on the confirm read.",
+            finding=finding,
+        )
+        return finding
 
     @staticmethod
     def _escalated(body: str, marker, confirm: dict) -> bool:

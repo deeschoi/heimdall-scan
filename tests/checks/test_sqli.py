@@ -143,6 +143,46 @@ def test_error_page_without_a_sql_signature_is_silent(make_ctx):
     assert SqliCheck().run(_ctx(make_ctx)) == []
 
 
+@respx.mock
+def test_trace_records_a_miss_and_a_hit_without_changing_findings(make_ctx):
+    spec = {
+        "paths": {
+            "/search": {
+                "get": {
+                    "parameters": [
+                        {"name": "q", "in": "query", "schema": {"type": "string"}}
+                    ]
+                }
+            },
+            "/users/v1/{username}": {
+                "get": {
+                    "parameters": [
+                        {"name": "username", "in": "path", "required": True,
+                         "schema": {"type": "string"}}
+                    ]
+                }
+            },
+        }
+    }
+    respx.get(f"{BASE}/search").mock(return_value=httpx.Response(200, json={"ok": True}))
+    respx.get(url__startswith=f"{BASE}/users/v1/").mock(
+        return_value=httpx.Response(500, text=SQL_ERROR)
+    )
+
+    silent = SqliCheck().run(_ctx(make_ctx, spec))
+    events = []
+    ctx = _ctx(make_ctx, spec, on_trace=events.append)
+    ctx.check_id = "sqli"
+    traced = SqliCheck().run(ctx)
+
+    assert [f.to_dict() for f in traced] == [f.to_dict() for f in silent]
+    assert any(e.kind == "miss" and not e.verbose for e in events)
+    hit = next(e for e in events if e.kind == "hit")
+    assert hit.finding is traced[0]
+    assert "in the body." in hit.text
+    assert any(e.verbose and e.text.startswith("sending ") for e in events)
+
+
 def test_oracle_covers_more_engine_signatures():
     c = SqliCheck()
     assert c.oracle(500, "ORA-00933: SQL command not properly ended")

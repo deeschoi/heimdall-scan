@@ -32,6 +32,24 @@ _SIG_RE = re.compile("|".join(_SQL_ERROR_SIGNATURES), re.IGNORECASE)
 _DEFAULT_PAYLOADS = ["'", "\"", "' OR '1'='1", "1'--"]
 
 
+def _param_phrase(targets) -> str:
+    bits = []
+    for param, loc in targets:
+        where = "path" if loc == "path" else "query"
+        bits.append(f"a string {where} `{param.name}`")
+    if len(bits) == 1:
+        return bits[0]
+    return ", ".join(bits[:-1]) + " and " + bits[-1]
+
+
+def _attempt_phrase(payload: str) -> str:
+    if payload == "'":
+        return "a quote"
+    if payload == '"':
+        return "a double quote"
+    return repr(payload)
+
+
 @register
 class SqliCheck(Check):
     id = "sqli"
@@ -56,11 +74,25 @@ class SqliCheck(Check):
             ]
             if not targets:
                 continue
+            ctx.trace(
+                "step",
+                f"{ep.method} {ep.path_template} has {_param_phrase(targets)}. "
+                f"Trying {_attempt_phrase(payloads[0])}.",
+            )
+            found = None
+            last_status = None
             for payload in payloads:
-                fired = self._probe(ctx, ep, targets, payload, seen)
-                if fired:
-                    findings.append(fired)
+                found, status = self._probe(ctx, ep, targets, payload, seen)
+                if status is not None:
+                    last_status = status
+                if found:
+                    findings.append(found)
                     break  # one confirmed injection per endpoint is enough
+            else:
+                if last_status is None:
+                    ctx.trace("miss", "request failed.")
+                else:
+                    ctx.trace("miss", f"HTTP {last_status}, no SQL error.")
         return findings
 
     def _probe(self, ctx, ep, targets, payload, seen):
@@ -72,21 +104,22 @@ class SqliCheck(Check):
             else:
                 params[p.name] = payload
         url = ctx.url(fill_path(ep.path_template, path_vals))
+        ctx.trace("step", f"sending {payload!r}", verbose=True)
         try:
             resp = ctx.client.request("GET", url, params=params or None)
         except Exception:
-            return None
+            return None, None
         m = _SIG_RE.search(resp.text or "")
         if not m:
-            return None
+            return None, resp.status_code
         key = f"{ep.method}:{ep.path_template}"
         if key in seen:
-            return None
+            return None, resp.status_code
         seen.add(key)
         ev = ctx.client.evidence_from(
             resp, matcher=f"SQL error signature: {m.group(0)!r} (payload={payload!r})"
         )
-        return Finding(
+        finding = Finding(
             check_id=self.id,
             title=self.title,
             severity=Severity.HIGH,
@@ -105,6 +138,8 @@ class SqliCheck(Check):
             remediation="Use parameterized queries / an ORM binding; never string-format SQL.",
             evidence=[ev],
         )
+        ctx.trace("hit", f"{m.group(0)} in the body.", finding=finding)
+        return finding, resp.status_code
 
     def oracle(self, status: int, body: str) -> bool:
         return bool(_SIG_RE.search(body or ""))

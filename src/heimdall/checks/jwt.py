@@ -55,13 +55,16 @@ class JwtCheck(Check):
                 (i for i in ctx.identities.values() if i.token), None
             )
         if not identity or not identity.token:
+            ctx.trace("miss", "no token to test.")
             return []
         token = identity.token
 
         findings: list[Finding] = []
         weak = self._weak_secret(ctx, token)
         if weak is not None:
-            findings.append(self._weak_finding(ctx, weak))
+            finding = self._weak_finding(ctx, weak)
+            ctx.trace("hit", f"signature verifies with {weak!r}.", finding=finding)
+            findings.append(finding)
 
         forged = self._alg_none(ctx, token, cfg)
         if forged is not None:
@@ -73,11 +76,15 @@ class JwtCheck(Check):
         try:
             header = _b64url_json(token.split(".")[0])
         except Exception:
+            ctx.trace("miss", "could not read the token header.")
             return None
         alg = header.get("alg", "")
         if not alg.upper().startswith("HS"):
+            ctx.trace("miss", f"token alg {alg or 'unknown'} is not HMAC.")
             return None
+        ctx.trace("step", "Checking the login token against a short HMAC wordlist.")
         for secret in ctx.load_payloads("jwt-secrets.txt") or _DEFAULT_SECRETS:
+            ctx.trace("step", f"trying secret {secret!r}", verbose=True)
             try:
                 pyjwt.decode(token, secret, algorithms=[alg])
                 return secret
@@ -95,6 +102,7 @@ class JwtCheck(Check):
                     continue
                 except pyjwt.PyJWTError:
                     return secret
+        ctx.trace("miss", "no wordlist secret verified the signature.")
         return None
 
     def _weak_finding(self, ctx: ScanContext, secret: str) -> Finding:
@@ -125,26 +133,30 @@ class JwtCheck(Check):
     def _alg_none(self, ctx: ScanContext, token: str, cfg: dict):
         protected = cfg.get("protected")
         if not protected:
+            ctx.trace("miss", "no protected endpoint configured.")
             return None
         try:
             payload = _b64url_json(token.split(".")[1])
         except Exception:
+            ctx.trace("miss", "could not read the token payload.")
             return None
+        method = protected.get("method", "GET")
+        ctx.trace("step", f"{method} {protected['path']} with an alg=none token.")
         forged = pyjwt.encode(payload, key="", algorithm="none")
         url = ctx.url(protected["path"])
         headers = {"Authorization": f"Bearer {forged}"}
         try:
-            resp = ctx.client.request(
-                protected.get("method", "GET"), url, headers=headers
-            )
+            resp = ctx.client.request(method, url, headers=headers)
         except Exception:
+            ctx.trace("miss", "request failed.")
             return None
         if resp.status_code >= 400:
+            ctx.trace("miss", f"HTTP {resp.status_code}, unsigned token rejected.")
             return None
         ev = ctx.client.evidence_from(
             resp, matcher=f"alg=none token accepted (HTTP {resp.status_code})"
         )
-        return Finding(
+        finding = Finding(
             check_id=self.id,
             title="JWT 'alg=none' accepted on a protected endpoint",
             severity=Severity.CRITICAL,
@@ -153,10 +165,16 @@ class JwtCheck(Check):
             wstg=self.wstg,
             cvss_vector="CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
             asvs=self.asvs,
-            method=protected.get("method", "GET"),
+            method=method,
             path_template=protected["path"],
             url=url,
             description="An unsigned token was accepted, allowing trivial impersonation.",
             remediation="Pin an allowlist of signing algorithms; reject 'none'.",
             evidence=[ev],
         )
+        ctx.trace(
+            "hit",
+            f"unsigned token accepted (HTTP {resp.status_code}).",
+            finding=finding,
+        )
+        return finding

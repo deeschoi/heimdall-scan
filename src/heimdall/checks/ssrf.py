@@ -63,7 +63,9 @@ class SsrfCheck(Check):
         match = spec.get("match")
         param = spec["param"]
         location = spec.get("location", "body")
+        method = spec.get("method", "POST")
         url = ctx.url(spec["path"])
+        ctx.trace("step", f"{method} {spec['path']} parameter `{param}` set to {canary}.")
         identity = ctx.identities.get(spec.get("as", "anon"))
         headers = identity.apply() if identity else None
         kwargs: dict = {"headers": headers, "allow_destructive": True}
@@ -72,19 +74,24 @@ class SsrfCheck(Check):
         else:
             kwargs["json"] = {param: canary}
         try:
-            resp = ctx.client.request(spec.get("method", "POST"), url, **kwargs)
+            resp = ctx.client.request(method, url, **kwargs)
         except Exception:
+            ctx.trace("miss", "request failed.")
             return None
         body = resp.text or ""
         fired = None
+        detail = ""
         if match and match in body:
             fired = f"Injected canary reflected in response: {match!r}"
-        elif _META_RE.search(body):
-            fired = f"Metadata fingerprint in response: {_META_RE.search(body).group(0)!r}"
+            detail = f"match {match!r} came back in the response."
+        elif (meta := _META_RE.search(body)):
+            fired = f"Metadata fingerprint in response: {meta.group(0)!r}"
+            detail = f"metadata fingerprint {meta.group(0)!r} in the response."
         if not fired:
+            ctx.trace("miss", "server did not fetch the canary.")
             return None
         ev = ctx.client.evidence_from(resp, matcher=fired)
-        return Finding(
+        finding = Finding(
             check_id=self.id,
             title=self.title,
             severity=Severity.HIGH,
@@ -93,13 +100,15 @@ class SsrfCheck(Check):
             wstg=self.wstg,
             cvss_vector=self.cvss_vector,
             asvs=self.asvs,
-            method=spec.get("method", "POST"),
+            method=method,
             path_template=spec["path"],
             url=url,
             description="A URL parameter caused the server to fetch an attacker-controlled internal resource.",
             remediation="Validate against an egress allowlist; block link-local/RFC1918; disable redirects.",
             evidence=[ev],
         )
+        ctx.trace("hit", detail, finding=finding)
+        return finding
 
     def oracle(self, status: int, body: str) -> bool:
         return bool(_META_RE.search(body or ""))
