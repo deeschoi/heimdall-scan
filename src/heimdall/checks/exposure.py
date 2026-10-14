@@ -40,39 +40,43 @@ class ExposureCheck(Check):
                 continue
             path_vals = {p.name: "1" for p in ep.path_params}
             url = ctx.url(fill_path(ep.path_template, path_vals))
+            ctx.trace("step", f"GET {ep.path_template}")
             try:
                 resp = ctx.client.request("GET", url)
             except Exception:
+                ctx.trace("miss", "request failed.")
                 continue
             if resp.status_code >= 400:
+                ctx.trace("miss", f"HTTP {resp.status_code}.")
                 continue
             leaked = self._leaked_keys(resp.text)
             if not leaked:
+                ctx.trace("miss", "no sensitive fields.")
                 continue
             ev = ctx.client.evidence_from(
                 resp, matcher=f"Response exposes sensitive field(s): {sorted(leaked)}"
             )
-            findings.append(
-                Finding(
-                    check_id=self.id,
-                    title=self.title,
-                    severity=Severity.HIGH,
-                    cwe=self.cwe,
-                    owasp_api=self.owasp_api,
-                    wstg=self.wstg,
-                    cvss_vector=self.cvss_vector,
-                    asvs=self.asvs,
-                    method=ep.method,
-                    path_template=ep.path_template,
-                    url=url,
-                    description=(
-                        "The endpoint returns object fields that should never be "
-                        f"serialized to clients: {sorted(leaked)}."
-                    ),
-                    remediation="Return an explicit response schema; strip secrets server-side.",
-                    evidence=[ev],
-                )
+            finding = Finding(
+                check_id=self.id,
+                title=self.title,
+                severity=Severity.HIGH,
+                cwe=self.cwe,
+                owasp_api=self.owasp_api,
+                wstg=self.wstg,
+                cvss_vector=self.cvss_vector,
+                asvs=self.asvs,
+                method=ep.method,
+                path_template=ep.path_template,
+                url=url,
+                description=(
+                    "The endpoint returns object fields that should never be "
+                    f"serialized to clients: {sorted(leaked)}."
+                ),
+                remediation="Return an explicit response schema; strip secrets server-side.",
+                evidence=[ev],
             )
+            ctx.trace("hit", f"leaked {', '.join(sorted(leaked))}.", finding=finding)
+            findings.append(finding)
         return findings
 
     @staticmethod

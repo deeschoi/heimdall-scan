@@ -29,6 +29,7 @@ from heimdall.eval import evaluate
 from heimdall.http_client import HttpClient
 from heimdall.models import Finding, Severity
 from heimdall.report import render
+from heimdall.report.trace import TraceLog
 from heimdall.risk import RiskRegisterError, apply_filters, fail_on
 from heimdall.scope import Scope
 
@@ -69,9 +70,13 @@ def main() -> None:
 @click.option("--baseline", type=click.Path(exists=True), help="Prior JSON report; only report NEW findings.")
 @click.option("--accepted-risk", type=click.Path(exists=True), help="YAML register; drop non-expired accepted findings before reporting/fail-on.")
 @click.option("--fail-on", "fail_on_sev", type=click.Choice(["info", "low", "medium", "high", "critical"]), help="Exit 2 if any finding at/above this severity.")
-def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_public, unsafe, rate_limit, baseline, accepted_risk, fail_on_sev):
+@click.option("--verbose", is_flag=True, help="Print each payload, secret guess, and request.")
+@click.option("--quiet", is_flag=True, help="Suppress the live scan transcript.")
+def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_public, unsafe, rate_limit, baseline, accepted_risk, fail_on_sev, verbose, quiet):
     """Scan a target and emit findings (JSON / SARIF / Markdown)."""
     load_builtin_checks()
+    log = None if quiet else TraceLog(err, verbose=verbose)
+    on_trace = None if log is None else log
     if suite_name:
         suite = _resolve_suite(suite_name)
         target = target or suite.target
@@ -79,7 +84,7 @@ def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_p
         chosen = list(checks) or suite.checks
         findings = scan_suite(
             suite, scope_hosts=list(scope_hosts), allow_public=allow_public,
-            unsafe=unsafe, rate_limit=rate_limit,
+            unsafe=unsafe, rate_limit=rate_limit, on_trace=on_trace,
         )
     else:
         if not target:
@@ -89,16 +94,23 @@ def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_p
         findings = scan(
             target, chosen, openapi=openapi, scope_hosts=list(scope_hosts),
             allow_public=allow_public, unsafe=unsafe, rate_limit=rate_limit,
+            on_trace=on_trace,
         )
 
     findings = _apply_filters(findings, accepted_risk=accepted_risk, baseline=baseline)
 
-    report = render("md" if fmt == "markdown" else fmt, findings, target=target or "")
+    report_fmt = "md" if fmt == "markdown" else fmt
+    trace = log.events if log is not None and report_fmt == "md" else None
+    report = render(report_fmt, findings, target=target or "", trace=trace)
     if out:
         Path(out).write_text(report, encoding="utf-8")
         err.print(f"[green]Wrote {len(findings)} findings to {out}[/green]")
     else:
-        console.print(report) if fmt in ("md", "markdown") else click.echo(report)
+        if fmt in ("md", "markdown"):
+            # The transcript contains severity tags like [HIGH]; leave them literal.
+            console.print(report, markup=False, highlight=False)
+        else:
+            click.echo(report)
 
     _print_summary(findings, target)
     if fail_on_sev and fail_on(findings, fail_on_sev):

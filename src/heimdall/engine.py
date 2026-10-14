@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import yaml
 
 from heimdall.auth import build_identities
-from heimdall.checks import ScanContext, get_check, load_builtin_checks
+from heimdall.checks import ScanContext, TraceEvent, get_check, load_builtin_checks
 from heimdall.crawler import load_spec, parse_endpoints
 from heimdall.http_client import HttpClient
 from heimdall.models import Finding
@@ -72,6 +72,7 @@ def scan(
     unsafe: bool = False,
     rate_limit: float = 20.0,
     exclude: Optional[list[str]] = None,
+    on_trace: Optional[Callable[[TraceEvent], None]] = None,
 ) -> list[Finding]:
     """Run the given checks against ``target`` and return findings."""
     load_builtin_checks()
@@ -101,9 +102,13 @@ def scan(
             identities=identities,
             payloads_dir=payloads_dir,
             extras=hints or {},
+            on_trace=on_trace,
         )
         for cid in check_ids:
             check = get_check(cid)
+            ctx.check_id = cid
+            if on_trace is not None:
+                on_trace(TraceEvent(check_id=cid, kind="check", text=cid))
             try:
                 findings.extend(check.run(ctx))
             except Exception as exc:  # a broken check must not abort the scan

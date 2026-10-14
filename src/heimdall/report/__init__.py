@@ -1,13 +1,13 @@
 from heimdall.report import json_report, markdown, sarif
 
 
-def render(fmt: str, findings, target: str = "") -> str:
+def render(fmt: str, findings, target: str = "", trace=None) -> str:
     if fmt == "json":
         return json_report.render(findings, target)
     if fmt == "sarif":
         return sarif.render(findings, target)
     if fmt in ("md", "markdown"):
-        return markdown.render(findings, target)
+        return markdown.render(findings, target, trace=trace)
     raise ValueError(f"Unknown report format: {fmt}")
 
 

@@ -54,6 +54,14 @@ class BolaCheck(Check):
         canary = spec["canary"]
         create = spec.get("create")
         read = spec["read"]
+        reader = read.get("as", "anon")
+        if create:
+            ctx.trace(
+                "step",
+                f"{create.get('as', 'owner')} creates {create['path']}; {reader} reads it back.",
+            )
+        else:
+            ctx.trace("step", f"{reader} reads {read['path']}.")
 
         # Set up the object as the owner (idempotent enough for a lab).
         if create:
@@ -78,9 +86,11 @@ class BolaCheck(Check):
                 headers=attacker.apply() if attacker else None,
             )
         except Exception:
+            ctx.trace("miss", "request failed.")
             return None
 
         if canary not in (resp.text or ""):
+            ctx.trace("miss", "canary did not appear in the other identity's response.")
             return None
 
         ev = ctx.client.evidence_from(
@@ -88,7 +98,7 @@ class BolaCheck(Check):
             matcher=f"Cross-tenant canary {canary!r} leaked to identity {read.get('as')!r}",
             note=f"canary={canary}",
         )
-        return Finding(
+        finding = Finding(
             check_id=self.id,
             title=self.title,
             severity=Severity.HIGH,
@@ -107,3 +117,5 @@ class BolaCheck(Check):
             remediation="Enforce per-object ownership checks on every read/write path.",
             evidence=[ev],
         )
+        ctx.trace("hit", f"canary leaked in {reader}'s response.", finding=finding)
+        return finding
