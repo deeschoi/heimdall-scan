@@ -46,7 +46,6 @@ class BolaCheck(Check):
         canary = ev.note.split("canary=", 1)[-1] if "canary=" in ev.note else None
         resp = ctx.client.request(
             ev.request_method, ev.request_url, headers=ev.request_headers,
-            allow_destructive=True,
         )
         return bool(canary and canary in (resp.text or ""))
 
@@ -72,7 +71,6 @@ class BolaCheck(Check):
                     ctx.url(create["path"]),
                     headers=owner.apply() if owner else None,
                     json=create.get("json"),
-                    allow_destructive=True,
                 )
             except Exception:
                 pass

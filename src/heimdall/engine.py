@@ -71,6 +71,7 @@ def scan(
     allow_public: bool = False,
     unsafe: bool = False,
     rate_limit: float = 20.0,
+    verify_tls: bool = True,
     exclude: Optional[list[str]] = None,
     on_trace: Optional[Callable[[TraceEvent], None]] = None,
 ) -> list[Finding]:
@@ -91,10 +92,11 @@ def scan(
     if exclude:
         endpoints = [e for e in endpoints if e.path_template not in exclude]
 
-    identities = build_identities(target, auth or {}, verify_tls=False)
-
     findings: list[Finding] = []
-    with HttpClient(scope, rate_limit_per_sec=rate_limit, unsafe=unsafe) as client:
+    with HttpClient(
+        scope, rate_limit_per_sec=rate_limit, unsafe=unsafe, verify_tls=verify_tls
+    ) as client:
+        identities = build_identities(target, auth or {}, client)
         ctx = ScanContext(
             base_url=target,
             client=client,

@@ -66,13 +66,18 @@ def main() -> None:
 @click.option("--scope", "scope_hosts", multiple=True, help="Extra in-scope host (repeatable).")
 @click.option("--i-understand", "allow_public", is_flag=True, help="Allow scanning non-private hosts.")
 @click.option("--unsafe", is_flag=True, help="Permit destructive HTTP methods (PUT/DELETE/PATCH).")
+@click.option("--insecure", is_flag=True, help="Do not verify TLS certificates.")
 @click.option("--rate-limit", default=20.0, help="Max requests/second.")
 @click.option("--baseline", type=click.Path(exists=True), help="Prior JSON report; only report NEW findings.")
 @click.option("--accepted-risk", type=click.Path(exists=True), help="YAML register; drop non-expired accepted findings before reporting/fail-on.")
 @click.option("--fail-on", "fail_on_sev", type=click.Choice(["info", "low", "medium", "high", "critical"]), help="Exit 2 if any finding at/above this severity.")
+<<<<<<< HEAD
 @click.option("--verbose", is_flag=True, help="Print each payload, secret guess, and request.")
 @click.option("--quiet", is_flag=True, help="Suppress the live scan transcript.")
 def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_public, unsafe, rate_limit, baseline, accepted_risk, fail_on_sev, verbose, quiet):
+=======
+def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_public, unsafe, insecure, rate_limit, baseline, accepted_risk, fail_on_sev):
+>>>>>>> 7014dd8 (Send login through the same guarded client as the checks.)
     """Scan a target and emit findings (JSON / SARIF / Markdown)."""
     load_builtin_checks()
     log = None if quiet else TraceLog(err, verbose=verbose)
@@ -84,7 +89,11 @@ def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_p
         chosen = list(checks) or suite.checks
         findings = scan_suite(
             suite, scope_hosts=list(scope_hosts), allow_public=allow_public,
+<<<<<<< HEAD
             unsafe=unsafe, rate_limit=rate_limit, on_trace=on_trace,
+=======
+            unsafe=unsafe, rate_limit=rate_limit, verify_tls=not insecure,
+>>>>>>> 7014dd8 (Send login through the same guarded client as the checks.)
         )
     else:
         if not target:
@@ -94,7 +103,11 @@ def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_p
         findings = scan(
             target, chosen, openapi=openapi, scope_hosts=list(scope_hosts),
             allow_public=allow_public, unsafe=unsafe, rate_limit=rate_limit,
+<<<<<<< HEAD
             on_trace=on_trace,
+=======
+            verify_tls=not insecure,
+>>>>>>> 7014dd8 (Send login through the same guarded client as the checks.)
         )
 
     findings = _apply_filters(findings, accepted_risk=accepted_risk, baseline=baseline)
@@ -156,7 +169,8 @@ def list_checks_cmd():
 @click.argument("report", type=click.Path(exists=True))
 @click.option("--scope", "scope_hosts", multiple=True)
 @click.option("--i-understand", "allow_public", is_flag=True)
-def replay(report, scope_hosts, allow_public):
+@click.option("--insecure", is_flag=True, help="Do not verify TLS certificates.")
+def replay(report, scope_hosts, allow_public, insecure):
     """Re-issue each finding's evidence request and re-run its matcher."""
     load_builtin_checks()
     findings = _load_findings(report)
@@ -164,7 +178,7 @@ def replay(report, scope_hosts, allow_public):
     for h in scope_hosts:
         scope.allow_hosts.add(h)
     ok = 0
-    with HttpClient(scope, unsafe=True) as client:
+    with HttpClient(scope, unsafe=True, verify_tls=not insecure) as client:
         from heimdall.checks import ScanContext
 
         for f in findings:

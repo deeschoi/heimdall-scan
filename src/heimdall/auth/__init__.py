@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-import httpx
+from heimdall.http_client import HttpClient
 
 
 @dataclass
@@ -31,7 +31,7 @@ class Identity:
 def _register_and_login(
     base_url: str,
     spec: dict[str, Any],
-    client: httpx.Client,
+    client: HttpClient,
 ) -> Identity:
     """Run an optional register step then a login step, extract a token.
 
@@ -44,10 +44,18 @@ def _register_and_login(
     """
     reg = spec.get("register")
     if reg:
-        client.post(base_url.rstrip("/") + reg["path"], json=reg.get("json", {}))
+        client.request(
+            "POST",
+            base_url.rstrip("/") + reg["path"],
+            json=reg.get("json", {}),
+        )
 
     login = spec["login"]
-    resp = client.post(base_url.rstrip("/") + login["path"], json=login.get("json", {}))
+    resp = client.request(
+        "POST",
+        base_url.rstrip("/") + login["path"],
+        json=login.get("json", {}),
+    )
     token_field = login.get("token_field", "auth_token")
     token = None
     try:
@@ -71,10 +79,12 @@ def _dig(data: Any, dotted: str) -> Any:
 def build_identities(
     base_url: str,
     auth_cfg: dict[str, Any],
-    spec: Optional[dict[str, Any]] = None,
-    verify_tls: bool = False,
+    client: HttpClient,
 ) -> dict[str, Identity]:
     """Build named identities from a suite ``auth:`` block.
+
+    Login and register requests go through ``client``, so they are scope-checked,
+    rate-limited, and use the same TLS policy as the rest of the scan.
 
     Supported per-identity ``type`` values:
       * ``login``  – register (optional) + login, extract bearer token
@@ -86,23 +96,22 @@ def build_identities(
     if not auth_cfg:
         return identities
 
-    with httpx.Client(timeout=10.0, verify=verify_tls) as client:
-        for name, cfg in auth_cfg.items():
-            kind = cfg.get("type", "login")
-            if kind == "login":
-                ident = _register_and_login(base_url, cfg, client)
-            elif kind == "bearer":
-                header = cfg.get("header", "Authorization")
-                prefix = cfg.get("prefix", "Bearer ")
-                ident = Identity(
-                    name=name,
-                    headers={header: f"{prefix}{cfg['token']}"},
-                    token=cfg["token"],
-                )
-            elif kind == "header":
-                ident = Identity(name=name, headers=dict(cfg.get("headers", {})))
-            else:  # none
-                ident = Identity(name=name)
-            ident.name = name
-            identities[name] = ident
+    for name, cfg in auth_cfg.items():
+        kind = cfg.get("type", "login")
+        if kind == "login":
+            ident = _register_and_login(base_url, cfg, client)
+        elif kind == "bearer":
+            header = cfg.get("header", "Authorization")
+            prefix = cfg.get("prefix", "Bearer ")
+            ident = Identity(
+                name=name,
+                headers={header: f"{prefix}{cfg['token']}"},
+                token=cfg["token"],
+            )
+        elif kind == "header":
+            ident = Identity(name=name, headers=dict(cfg.get("headers", {})))
+        else:  # none
+            ident = Identity(name=name)
+        ident.name = name
+        identities[name] = ident
     return identities

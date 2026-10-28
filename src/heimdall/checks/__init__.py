@@ -112,7 +112,6 @@ class Check:
             ev.request_url,
             headers=ev.request_headers,
             content=ev.request_body,
-            allow_destructive=True,
         )
         return self.oracle(resp.status_code, resp.text)
 

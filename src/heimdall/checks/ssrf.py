@@ -68,7 +68,7 @@ class SsrfCheck(Check):
         ctx.trace("step", f"{method} {spec['path']} parameter `{param}` set to {canary}.")
         identity = ctx.identities.get(spec.get("as", "anon"))
         headers = identity.apply() if identity else None
-        kwargs: dict = {"headers": headers, "allow_destructive": True}
+        kwargs: dict = {"headers": headers}
         if location == "query":
             kwargs["params"] = {param: canary}
         else:

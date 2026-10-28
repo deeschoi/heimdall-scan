@@ -63,7 +63,6 @@ class MassAssignmentCheck(Check):
         try:
             create_resp = ctx.client.request(
                 create.get("method", "POST"), create_url, json=payload,
-                allow_destructive=True,
             )
         except Exception:
             ctx.trace("miss", "request failed.")

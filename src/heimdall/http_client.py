@@ -46,7 +46,7 @@ class HttpClient:
         rate_limit_per_sec: float = 20.0,
         timeout: float = 10.0,
         unsafe: bool = False,
-        verify_tls: bool = False,
+        verify_tls: bool = True,
         follow_redirects: bool = False,
     ) -> None:
         self.scope = scope
@@ -73,11 +73,10 @@ class HttpClient:
         json: object = None,
         content: Optional[str] = None,
         params: Optional[dict[str, str]] = None,
-        allow_destructive: bool = False,
     ) -> httpx.Response:
         method = method.upper()
         self.scope.check(url)
-        if method in _DESTRUCTIVE and not (self.unsafe or allow_destructive):
+        if method in _DESTRUCTIVE and not self.unsafe:
             raise PermissionError(
                 f"Blocked destructive {method} on {url}. Pass --unsafe to allow."
             )
