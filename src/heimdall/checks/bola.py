@@ -86,12 +86,8 @@ class BolaCheck(Check):
                 read_url,
                 headers=attacker.apply() if attacker else None,
             )
-<<<<<<< HEAD
-        except Exception:
-            ctx.trace("miss", "request failed.")
-=======
         except httpx.HTTPError:
->>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
+            ctx.trace("miss", "request failed.")
             return None
 
         if canary not in (resp.text or ""):

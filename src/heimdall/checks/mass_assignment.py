@@ -67,23 +67,15 @@ class MassAssignmentCheck(Check):
             create_resp = ctx.client.request(
                 create.get("method", "POST"), create_url, json=payload,
             )
-<<<<<<< HEAD
-        except Exception:
-            ctx.trace("miss", "request failed.")
-=======
         except httpx.HTTPError:
->>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
+            ctx.trace("miss", "request failed.")
             return None
 
         confirm_url = ctx.url(confirm["path"])
         try:
             confirm_resp = ctx.client.request(confirm.get("method", "GET"), confirm_url)
-<<<<<<< HEAD
-        except Exception:
-            ctx.trace("miss", "request failed.")
-=======
         except httpx.HTTPError:
->>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
+            ctx.trace("miss", "request failed.")
             return None
 
         if not self._escalated(confirm_resp.text, marker, confirm):

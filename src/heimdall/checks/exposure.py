@@ -46,12 +46,8 @@ class ExposureCheck(Check):
             ctx.trace("step", f"GET {ep.path_template}")
             try:
                 resp = ctx.client.request("GET", url)
-<<<<<<< HEAD
-            except Exception:
-                ctx.trace("miss", "request failed.")
-=======
             except httpx.HTTPError:
->>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
+                ctx.trace("miss", "request failed.")
                 continue
             if resp.status_code >= 400:
                 ctx.trace("miss", f"HTTP {resp.status_code}.")

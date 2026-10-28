@@ -10,11 +10,7 @@ from typing import Any, Callable, Optional
 import yaml
 
 from heimdall.auth import build_identities
-<<<<<<< HEAD
-from heimdall.checks import ScanContext, TraceEvent, get_check, load_builtin_checks
-=======
-from heimdall.checks import Check, ScanContext, get_check, load_builtin_checks
->>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
+from heimdall.checks import Check, ScanContext, TraceEvent, get_check, load_builtin_checks
 from heimdall.crawler import load_spec, parse_endpoints
 from heimdall.http_client import HttpClient
 from heimdall.models import Finding
@@ -131,17 +127,8 @@ def scan(
             endpoints=endpoints,
             identities=identities,
             payloads_dir=payloads_dir,
-<<<<<<< HEAD
-            extras=hints or {},
-            on_trace=on_trace,
-        )
-        for cid in check_ids:
-            check = get_check(cid)
-            ctx.check_id = cid
-            if on_trace is not None:
-                on_trace(TraceEvent(check_id=cid, kind="check", text=cid))
-=======
             extras=hint_map,
+            on_trace=on_trace,
         )
         for cid, check in zip(check_ids, checks):
             if check.hint_key and not hint_map.get(check.hint_key):
@@ -150,7 +137,9 @@ def scan(
                     file=sys.stderr,
                 )
                 continue
->>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
+            ctx.check_id = cid
+            if on_trace is not None:
+                on_trace(TraceEvent(check_id=cid, kind="check", text=cid))
             try:
                 findings.extend(check.run(ctx))
             except ScopeError:

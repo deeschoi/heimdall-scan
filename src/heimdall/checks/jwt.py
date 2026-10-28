@@ -148,16 +148,9 @@ class JwtCheck(Check):
         url = ctx.url(protected["path"])
         headers = {"Authorization": f"Bearer {forged}"}
         try:
-<<<<<<< HEAD
             resp = ctx.client.request(method, url, headers=headers)
-        except Exception:
-            ctx.trace("miss", "request failed.")
-=======
-            resp = ctx.client.request(
-                protected.get("method", "GET"), url, headers=headers
-            )
         except httpx.HTTPError:
->>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
+            ctx.trace("miss", "request failed.")
             return None
         if resp.status_code >= 400:
             ctx.trace("miss", f"HTTP {resp.status_code}, unsigned token rejected.")

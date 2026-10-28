@@ -71,46 +71,13 @@ def main() -> None:
 @click.option("--baseline", type=click.Path(exists=True), help="Prior JSON report; only report NEW findings.")
 @click.option("--accepted-risk", type=click.Path(exists=True), help="YAML register; drop non-expired accepted findings before reporting/fail-on.")
 @click.option("--fail-on", "fail_on_sev", type=click.Choice(["info", "low", "medium", "high", "critical"]), help="Exit 2 if any finding at/above this severity.")
-<<<<<<< HEAD
 @click.option("--verbose", is_flag=True, help="Print each payload, secret guess, and request.")
 @click.option("--quiet", is_flag=True, help="Suppress the live scan transcript.")
-def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_public, unsafe, rate_limit, baseline, accepted_risk, fail_on_sev, verbose, quiet):
-=======
-def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_public, unsafe, insecure, rate_limit, baseline, accepted_risk, fail_on_sev):
->>>>>>> 7014dd8 (Send login through the same guarded client as the checks.)
+def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_public, unsafe, insecure, rate_limit, baseline, accepted_risk, fail_on_sev, verbose, quiet):
     """Scan a target and emit findings (JSON / SARIF / Markdown)."""
     load_builtin_checks()
-<<<<<<< HEAD
     log = None if quiet else TraceLog(err, verbose=verbose)
     on_trace = None if log is None else log
-    if suite_name:
-        suite = _resolve_suite(suite_name)
-        target = target or suite.target
-        openapi = openapi or suite.openapi
-        chosen = list(checks) or suite.checks
-        findings = scan_suite(
-            suite, scope_hosts=list(scope_hosts), allow_public=allow_public,
-<<<<<<< HEAD
-            unsafe=unsafe, rate_limit=rate_limit, on_trace=on_trace,
-=======
-            unsafe=unsafe, rate_limit=rate_limit, verify_tls=not insecure,
->>>>>>> 7014dd8 (Send login through the same guarded client as the checks.)
-        )
-    else:
-        if not target:
-            raise click.ClickException("Provide --target or --suite.")
-        openapi = openapi or f"{target.rstrip('/')}/openapi.json"
-        chosen = list(checks) or all_check_ids()
-        findings = scan(
-            target, chosen, openapi=openapi, scope_hosts=list(scope_hosts),
-            allow_public=allow_public, unsafe=unsafe, rate_limit=rate_limit,
-<<<<<<< HEAD
-            on_trace=on_trace,
-=======
-            verify_tls=not insecure,
->>>>>>> 7014dd8 (Send login through the same guarded client as the checks.)
-        )
-=======
     try:
         if suite_name:
             suite = _resolve_suite(suite_name)
@@ -120,6 +87,7 @@ def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_p
             findings = scan_suite(
                 suite, scope_hosts=list(scope_hosts), allow_public=allow_public,
                 unsafe=unsafe, rate_limit=rate_limit, verify_tls=not insecure,
+                on_trace=on_trace,
             )
         else:
             if not target:
@@ -129,11 +97,10 @@ def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_p
             findings = scan(
                 target, chosen, openapi=openapi, scope_hosts=list(scope_hosts),
                 allow_public=allow_public, unsafe=unsafe, rate_limit=rate_limit,
-                verify_tls=not insecure,
+                verify_tls=not insecure, on_trace=on_trace,
             )
     except (ScanError, ScopeError) as exc:
         raise click.ClickException(str(exc)) from exc
->>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
 
     findings = _apply_filters(findings, accepted_risk=accepted_risk, baseline=baseline)
 

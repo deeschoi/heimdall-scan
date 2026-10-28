@@ -77,14 +77,9 @@ class SsrfCheck(Check):
         else:
             kwargs["json"] = {param: canary}
         try:
-<<<<<<< HEAD
             resp = ctx.client.request(method, url, **kwargs)
-        except Exception:
-            ctx.trace("miss", "request failed.")
-=======
-            resp = ctx.client.request(spec.get("method", "POST"), url, **kwargs)
         except httpx.HTTPError:
->>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
+            ctx.trace("miss", "request failed.")
             return None
         body = resp.text or ""
         fired = None

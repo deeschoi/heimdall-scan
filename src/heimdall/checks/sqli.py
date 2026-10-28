@@ -110,13 +110,8 @@ class SqliCheck(Check):
         ctx.trace("step", f"sending {payload!r}", verbose=True)
         try:
             resp = ctx.client.request("GET", url, params=params or None)
-<<<<<<< HEAD
-        except Exception:
-            return None, None
-=======
         except httpx.HTTPError:
-            return None
->>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
+            return None, None
         m = _SIG_RE.search(resp.text or "")
         if not m:
             return None, resp.status_code
