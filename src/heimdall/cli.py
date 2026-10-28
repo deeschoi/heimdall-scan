@@ -24,14 +24,14 @@ from rich.table import Table
 
 from heimdall import __version__
 from heimdall.checks import all_check_ids, get_check, load_builtin_checks
-from heimdall.engine import Suite, scan, scan_suite
+from heimdall.engine import ScanError, Suite, scan, scan_suite
 from heimdall.eval import evaluate
 from heimdall.http_client import HttpClient
 from heimdall.models import Finding, Severity
 from heimdall.report import render
 from heimdall.report.trace import TraceLog
 from heimdall.risk import RiskRegisterError, apply_filters, fail_on
-from heimdall.scope import Scope
+from heimdall.scope import Scope, ScopeError
 
 console = Console()
 err = Console(stderr=True)
@@ -80,6 +80,7 @@ def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_p
 >>>>>>> 7014dd8 (Send login through the same guarded client as the checks.)
     """Scan a target and emit findings (JSON / SARIF / Markdown)."""
     load_builtin_checks()
+<<<<<<< HEAD
     log = None if quiet else TraceLog(err, verbose=verbose)
     on_trace = None if log is None else log
     if suite_name:
@@ -109,6 +110,30 @@ def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_p
             verify_tls=not insecure,
 >>>>>>> 7014dd8 (Send login through the same guarded client as the checks.)
         )
+=======
+    try:
+        if suite_name:
+            suite = _resolve_suite(suite_name)
+            target = target or suite.target
+            openapi = openapi or suite.openapi
+            chosen = list(checks) or suite.checks
+            findings = scan_suite(
+                suite, scope_hosts=list(scope_hosts), allow_public=allow_public,
+                unsafe=unsafe, rate_limit=rate_limit, verify_tls=not insecure,
+            )
+        else:
+            if not target:
+                raise click.ClickException("Provide --target or --suite.")
+            openapi = openapi or f"{target.rstrip('/')}/openapi.json"
+            chosen = list(checks) or all_check_ids()
+            findings = scan(
+                target, chosen, openapi=openapi, scope_hosts=list(scope_hosts),
+                allow_public=allow_public, unsafe=unsafe, rate_limit=rate_limit,
+                verify_tls=not insecure,
+            )
+    except (ScanError, ScopeError) as exc:
+        raise click.ClickException(str(exc)) from exc
+>>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
 
     findings = _apply_filters(findings, accepted_risk=accepted_risk, baseline=baseline)
 
@@ -169,16 +194,21 @@ def list_checks_cmd():
 @click.argument("report", type=click.Path(exists=True))
 @click.option("--scope", "scope_hosts", multiple=True)
 @click.option("--i-understand", "allow_public", is_flag=True)
+@click.option("--unsafe", is_flag=True, help="Permit destructive HTTP methods (PUT/DELETE/PATCH).")
 @click.option("--insecure", is_flag=True, help="Do not verify TLS certificates.")
-def replay(report, scope_hosts, allow_public, insecure):
+def replay(report, scope_hosts, allow_public, unsafe, insecure):
     """Re-issue each finding's evidence request and re-run its matcher."""
     load_builtin_checks()
     findings = _load_findings(report)
     scope = Scope.from_targets([f.url for f in findings], allow_public=allow_public)
     for h in scope_hosts:
         scope.allow_hosts.add(h)
+    try:
+        scope.validate()
+    except ScopeError as exc:
+        raise click.ClickException(str(exc)) from exc
     ok = 0
-    with HttpClient(scope, unsafe=True, verify_tls=not insecure) as client:
+    with HttpClient(scope, unsafe=unsafe, verify_tls=not insecure) as client:
         from heimdall.checks import ScanContext
 
         for f in findings:
@@ -186,6 +216,12 @@ def replay(report, scope_hosts, allow_public, insecure):
             ctx = ScanContext(base_url=f.url, client=client)
             try:
                 confirmed = check.replay(f, ctx)
+            except PermissionError:
+                console.print(
+                    f"[yellow]BLOCKED (pass --unsafe)[/yellow]  "
+                    f"{f.check_id:16} {f.method} {f.path_template}"
+                )
+                continue
             except NotImplementedError:
                 confirmed = None
             mark = "[green]CONFIRMED[/green]" if confirmed else (

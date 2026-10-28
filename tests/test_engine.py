@@ -14,7 +14,8 @@ import respx
 import yaml
 
 from heimdall.checks import Check, ScanContext
-from heimdall.engine import Suite, scan, scan_suite
+from heimdall.engine import ScanError, Suite, scan, scan_suite
+from heimdall.scope import ScopeError
 
 BASE = "http://127.0.0.1:8000"
 SPEC_URL = f"{BASE}/openapi.json"
@@ -115,10 +116,11 @@ def test_suite_resolve_is_relative_to_the_yaml(tmp_path):
 @respx.mock
 def test_scan_crawls_the_spec_and_runs_each_check():
     spec = _mock_spec()
+    respx.get(f"{BASE}/createdb").mock(return_value=httpx.Response(404, text="no"))
     debug = respx.get(f"{BASE}/users/v1/_debug").mock(
         return_value=httpx.Response(200, json={"users": [{"username": "a", "password": "p"}]})
     )
-    respx.get(url__startswith=f"{BASE}/users/v1/1").mock(
+    respx.get(url__regex=r"http://127\.0\.0\.1:8000/users/v1/(?!_debug).+").mock(
         return_value=httpx.Response(500, text=SQL_ERROR)
     )
 
@@ -150,12 +152,50 @@ def test_scan_never_requests_excluded_endpoints():
 
 
 @respx.mock
-def test_scan_survives_an_unreachable_openapi_document():
+def test_scan_fails_when_openapi_document_is_unreachable():
     respx.get(SPEC_URL).mock(return_value=httpx.Response(404, text="not found"))
     probe = respx.get(url__startswith=BASE).mock(return_value=httpx.Response(200))
 
-    assert scan(BASE, ["exposure", "sqli"], openapi=SPEC_URL, rate_limit=0) == []
+    with pytest.raises(ScanError, match="could not load OpenAPI spec"):
+        scan(BASE, ["exposure", "sqli"], openapi=SPEC_URL, rate_limit=0)
     assert not probe.called
+
+
+def test_scan_fails_when_spec_driven_check_has_no_spec():
+    with pytest.raises(ScanError, match="not provided"):
+        scan(BASE, ["sqli"], rate_limit=0)
+
+
+@respx.mock
+def test_hint_checks_run_when_openapi_fails(capsys):
+    respx.get(SPEC_URL).mock(return_value=httpx.Response(404, text="not found"))
+    respx.post(f"{BASE}/invoices").mock(return_value=httpx.Response(201))
+    read = respx.get(f"{BASE}/invoices/1").mock(
+        return_value=httpx.Response(200, json={"secret": CANARY})
+    )
+
+    findings = scan(
+        BASE,
+        ["bola"],
+        openapi=SPEC_URL,
+        auth={"user_b": {"type": "bearer", "token": "TOK-B"}},
+        hints={"bola": [BOLA_HINT]},
+        rate_limit=0,
+    )
+
+    assert len(findings) == 1
+    assert read.called
+    assert "could not load OpenAPI spec" in capsys.readouterr().err
+
+
+def test_hint_check_without_hints_is_skipped(capsys):
+    assert scan(BASE, ["bola"], rate_limit=0) == []
+    assert "check bola skipped: no hints.bola in suite" in capsys.readouterr().err
+
+
+def test_scan_refuses_a_public_target_without_the_flag():
+    with pytest.raises(ScopeError):
+        scan("http://8.8.8.8", ["bola"], rate_limit=0)
 
 
 @respx.mock
@@ -242,6 +282,7 @@ def test_a_broken_check_does_not_abort_the_scan(monkeypatch, capsys):
         engine, "get_check", lambda cid: Boom() if cid == "boom" else real_get_check(cid)
     )
     _mock_spec()
+    respx.get(f"{BASE}/createdb").mock(return_value=httpx.Response(404, text="no"))
     respx.get(f"{BASE}/users/v1/_debug").mock(
         return_value=httpx.Response(200, json={"token": "leaked"})
     )
@@ -258,7 +299,7 @@ def test_scan_rejects_an_unknown_check():
 
 
 @respx.mock
-def test_scan_blocks_destructive_methods_unless_unsafe():
+def test_scan_blocks_destructive_methods_unless_unsafe(capsys):
     """A hint asking for a PATCH is refused by the client, not silently sent."""
     patch = respx.patch(f"{BASE}/invoices/1").mock(
         return_value=httpx.Response(200, json={"secret": CANARY})
@@ -268,6 +309,7 @@ def test_scan_blocks_destructive_methods_unless_unsafe():
 
     assert scan(BASE, ["bola"], hints={"bola": [hint]}, rate_limit=0) == []
     assert not patch.called
+    assert "blocked" in capsys.readouterr().err.lower()
 
     assert len(scan(BASE, ["bola"], hints={"bola": [hint]}, unsafe=True, rate_limit=0)) == 1
     assert patch.called

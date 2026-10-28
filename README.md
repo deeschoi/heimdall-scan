@@ -146,6 +146,7 @@ heimdall scan --suite vampi --format md                 # human report
 heimdall scan --suite vampi --format sarif --out o.sarif # GitHub Code Scanning
 heimdall scan --suite vampi --format json --out o.json  # machine / baseline
 heimdall replay o.json                                  # re-confirm each finding
+heimdall replay o.json --unsafe                         # also replay PUT/DELETE/PATCH
 heimdall explain o.json <fingerprint>                   # evidence for one finding
 heimdall gate o.json --accepted-risk accepted-risk.yml --fail-on high
 ```
@@ -213,9 +214,10 @@ three are informative on their own:
 
 ## Safety (see `docs/threat-model.md`)
 
-- **Scope allowlist** — only loopback/RFC1918 by default; public targets require `--i-understand`.
-- **No destructive methods** — `PUT/DELETE/PATCH` blocked unless `--unsafe`.
-- **Rate limited** — `--rate-limit` (default 20 rps).
+- **Scope allowlist** — only hosts named with `--target` or `--scope`. Loopback and RFC1918 names are allowed; a public host requires `--i-understand`.
+- **No destructive methods** — `PUT/DELETE/PATCH` blocked unless `--unsafe`, including `replay`.
+- **TLS verified** — certificate checks are on unless `--insecure`.
+- **Rate limited** — `--rate-limit` (default 20 rps). Login uses the same client.
 
 ## Layout
 

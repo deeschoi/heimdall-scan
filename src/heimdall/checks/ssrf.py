@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import re
 
+import httpx
+
 from heimdall.checks import Check, ScanContext, register
 from heimdall.crawler import fill_path
 from heimdall.models import Finding, Severity
@@ -49,6 +51,7 @@ class SsrfCheck(Check):
     wstg = "WSTG-INPV-19"
     asvs = "12.6.1"
     cvss_vector = "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:L/A:N"
+    hint_key = "ssrf"
 
     def run(self, ctx: ScanContext) -> list[Finding]:
         findings: list[Finding] = []
@@ -74,9 +77,14 @@ class SsrfCheck(Check):
         else:
             kwargs["json"] = {param: canary}
         try:
+<<<<<<< HEAD
             resp = ctx.client.request(method, url, **kwargs)
         except Exception:
             ctx.trace("miss", "request failed.")
+=======
+            resp = ctx.client.request(spec.get("method", "POST"), url, **kwargs)
+        except httpx.HTTPError:
+>>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
             return None
         body = resp.text or ""
         fired = None

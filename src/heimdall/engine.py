@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -9,11 +10,19 @@ from typing import Any, Callable, Optional
 import yaml
 
 from heimdall.auth import build_identities
+<<<<<<< HEAD
 from heimdall.checks import ScanContext, TraceEvent, get_check, load_builtin_checks
+=======
+from heimdall.checks import Check, ScanContext, get_check, load_builtin_checks
+>>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
 from heimdall.crawler import load_spec, parse_endpoints
 from heimdall.http_client import HttpClient
 from heimdall.models import Finding
-from heimdall.scope import Scope
+from heimdall.scope import Scope, ScopeError
+
+
+class ScanError(Exception):
+    """Raised when a scan cannot proceed."""
 
 
 @dataclass
@@ -59,6 +68,27 @@ class Suite:
         return p
 
 
+def _load_endpoints(openapi: Optional[str], checks: list[Check]) -> list:
+    """Load the OpenAPI document, or fail when a spec-driven check needs it."""
+    needs_spec = any(c.spec_driven for c in checks)
+    if not openapi:
+        if needs_spec:
+            raise ScanError("could not load OpenAPI spec: not provided")
+        return []
+    try:
+        return parse_endpoints(load_spec(openapi))
+    except Exception as exc:
+        if needs_spec:
+            raise ScanError(
+                f"could not load OpenAPI spec from {openapi}: {exc}"
+            ) from exc
+        print(
+            f"[warn] could not load OpenAPI spec from {openapi}: {exc}",
+            file=sys.stderr,
+        )
+        return []
+
+
 def scan(
     target: str,
     check_ids: list[str],
@@ -78,13 +108,10 @@ def scan(
     """Run the given checks against ``target`` and return findings."""
     load_builtin_checks()
     scope = Scope.from_targets([target] + (scope_hosts or []), allow_public=allow_public)
+    scope.validate()
+    checks = [get_check(cid) for cid in check_ids]
 
-    endpoints = []
-    if openapi:
-        try:
-            endpoints = parse_endpoints(load_spec(openapi))
-        except Exception:
-            endpoints = []
+    endpoints = _load_endpoints(openapi, checks)
 
     # Drop side-effecting / utility endpoints (e.g. /createdb) from the crawl so
     # crawl-based checks don't mutate the target and invalidate other checks.
@@ -93,6 +120,7 @@ def scan(
         endpoints = [e for e in endpoints if e.path_template not in exclude]
 
     findings: list[Finding] = []
+    hint_map = hints or {}
     with HttpClient(
         scope, rate_limit_per_sec=rate_limit, unsafe=unsafe, verify_tls=verify_tls
     ) as client:
@@ -103,6 +131,7 @@ def scan(
             endpoints=endpoints,
             identities=identities,
             payloads_dir=payloads_dir,
+<<<<<<< HEAD
             extras=hints or {},
             on_trace=on_trace,
         )
@@ -111,11 +140,24 @@ def scan(
             ctx.check_id = cid
             if on_trace is not None:
                 on_trace(TraceEvent(check_id=cid, kind="check", text=cid))
+=======
+            extras=hint_map,
+        )
+        for cid, check in zip(check_ids, checks):
+            if check.hint_key and not hint_map.get(check.hint_key):
+                print(
+                    f"[info] check {cid} skipped: no hints.{check.hint_key} in suite",
+                    file=sys.stderr,
+                )
+                continue
+>>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
             try:
                 findings.extend(check.run(ctx))
+            except ScopeError:
+                raise
+            except PermissionError as exc:
+                print(f"[warn] check {cid} blocked: {exc}", file=sys.stderr)
             except Exception as exc:  # a broken check must not abort the scan
-                import sys
-
                 print(f"[warn] check {cid} errored: {exc}", file=sys.stderr)
 
     # De-duplicate on fingerprint.

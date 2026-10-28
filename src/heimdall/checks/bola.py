@@ -15,6 +15,8 @@ Configured per suite via ``hints.bola`` so the check stays target-agnostic::
 
 from __future__ import annotations
 
+import httpx
+
 from heimdall.checks import Check, ScanContext, register
 from heimdall.models import Finding, Severity
 
@@ -28,6 +30,7 @@ class BolaCheck(Check):
     wstg = "WSTG-ATHZ-04"
     asvs = "4.2.1"
     cvss_vector = "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N"
+    hint_key = "bola"
 
     def run(self, ctx: ScanContext) -> list[Finding]:
         specs = ctx.extras.get("bola") or []
@@ -72,7 +75,7 @@ class BolaCheck(Check):
                     headers=owner.apply() if owner else None,
                     json=create.get("json"),
                 )
-            except Exception:
+            except httpx.HTTPError:
                 pass
 
         attacker = ctx.identities.get(read.get("as", "anon"))
@@ -83,8 +86,12 @@ class BolaCheck(Check):
                 read_url,
                 headers=attacker.apply() if attacker else None,
             )
+<<<<<<< HEAD
         except Exception:
             ctx.trace("miss", "request failed.")
+=======
+        except httpx.HTTPError:
+>>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
             return None
 
         if canary not in (resp.text or ""):

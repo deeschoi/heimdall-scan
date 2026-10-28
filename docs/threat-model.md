@@ -10,16 +10,17 @@ Scope: **Heimdall is an active DAST tool.** The threat model here is about the
 
 ## Trust boundaries
 - Operator → Heimdall: CLI flags and suite YAML (trusted input).
-- Heimdall → target: every outbound request (must stay in scope).
+- Heimdall → target: every outbound request, including login, goes through `HttpClient` and must stay in scope.
 - Target → Heimdall: responses (untrusted; parsed defensively).
 
 ## Abuse cases and mitigations
 | Abuse case | Mitigation in code |
 |---|---|
-| Scan a host you don't own | `scope.py`: allowlist; only private/loopback by default; public needs `--i-understand`. |
-| Destroy target data | `http_client.py`: `PUT/DELETE/PATCH` blocked unless `--unsafe`. |
-| Accidental DoS | Rate limiter (`--rate-limit`, default 20 rps). |
-| Leak the operator's token into a report | Reports embed request headers; keep reports out of VCS (`.gitignore`). |
+| Scan a host you don't own | `scope.py`: allowlist is the named target plus `--scope` hosts only. A public host requires `--i-understand` (`Scope.validate`). |
+| Destroy target data | `http_client.py`: `PUT/DELETE/PATCH` blocked unless `--unsafe`, including `replay` and suite hints. |
+| Accidental DoS | Rate limiter (`--rate-limit`, default 20 rps), applied to login as well. |
+| Leak the operator's token into a report | Evidence drops credential request headers (`Authorization`, `Cookie`, `X-Api-Key`, and similar) and redacts them in response headers. Keep reports out of VCS (`.gitignore`). |
+| TLS interception of the scanner | Certificates are verified unless `--insecure`. |
 | SSRF payloads escaping the lab | SSRF canaries target link-local/loopback; scope guard still applies to the scanner's own requests. |
 
 ## Non-goals

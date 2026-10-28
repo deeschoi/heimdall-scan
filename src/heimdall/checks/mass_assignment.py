@@ -21,6 +21,8 @@ from __future__ import annotations
 import json as jsonlib
 import uuid
 
+import httpx
+
 from heimdall.checks import Check, ScanContext, register
 from heimdall.models import Finding, Severity
 
@@ -34,6 +36,7 @@ class MassAssignmentCheck(Check):
     wstg = "WSTG-BUSL-08"
     asvs = "5.1.2"
     cvss_vector = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"
+    hint_key = "mass_assignment"
 
     def run(self, ctx: ScanContext) -> list[Finding]:
         specs = ctx.extras.get("mass_assignment") or []
@@ -64,15 +67,23 @@ class MassAssignmentCheck(Check):
             create_resp = ctx.client.request(
                 create.get("method", "POST"), create_url, json=payload,
             )
+<<<<<<< HEAD
         except Exception:
             ctx.trace("miss", "request failed.")
+=======
+        except httpx.HTTPError:
+>>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
             return None
 
         confirm_url = ctx.url(confirm["path"])
         try:
             confirm_resp = ctx.client.request(confirm.get("method", "GET"), confirm_url)
+<<<<<<< HEAD
         except Exception:
             ctx.trace("miss", "request failed.")
+=======
+        except httpx.HTTPError:
+>>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
             return None
 
         if not self._escalated(confirm_resp.text, marker, confirm):

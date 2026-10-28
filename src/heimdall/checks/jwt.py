@@ -18,6 +18,7 @@ import base64
 import json as jsonlib
 import warnings
 
+import httpx
 import jwt as pyjwt
 
 from heimdall.checks import Check, ScanContext, register
@@ -43,6 +44,7 @@ class JwtCheck(Check):
     wstg = "WSTG-SESS-10"
     asvs = "3.5.3"
     cvss_vector = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"
+    hint_key = "jwt"
 
     def run(self, ctx: ScanContext) -> list[Finding]:
         cfg = ctx.extras.get("jwt") or {}
@@ -146,9 +148,16 @@ class JwtCheck(Check):
         url = ctx.url(protected["path"])
         headers = {"Authorization": f"Bearer {forged}"}
         try:
+<<<<<<< HEAD
             resp = ctx.client.request(method, url, headers=headers)
         except Exception:
             ctx.trace("miss", "request failed.")
+=======
+            resp = ctx.client.request(
+                protected.get("method", "GET"), url, headers=headers
+            )
+        except httpx.HTTPError:
+>>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
             return None
         if resp.status_code >= 400:
             ctx.trace("miss", f"HTTP {resp.status_code}, unsigned token rejected.")

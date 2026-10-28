@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import re
 
+import httpx
+
 from heimdall.checks import Check, ScanContext, register
 from heimdall.crawler import fill_path
 from heimdall.models import Evidence, Finding, Severity
@@ -59,6 +61,7 @@ class SqliCheck(Check):
     wstg = "WSTG-INPV-05"
     asvs = "5.3.4"
     cvss_vector = "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"
+    spec_driven = True
 
     def run(self, ctx: ScanContext) -> list[Finding]:
         payloads = ctx.load_payloads("sqli.txt") or _DEFAULT_PAYLOADS
@@ -107,8 +110,13 @@ class SqliCheck(Check):
         ctx.trace("step", f"sending {payload!r}", verbose=True)
         try:
             resp = ctx.client.request("GET", url, params=params or None)
+<<<<<<< HEAD
         except Exception:
             return None, None
+=======
+        except httpx.HTTPError:
+            return None
+>>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
         m = _SIG_RE.search(resp.text or "")
         if not m:
             return None, resp.status_code

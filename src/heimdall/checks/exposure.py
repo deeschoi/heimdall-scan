@@ -10,6 +10,8 @@ from __future__ import annotations
 import json as jsonlib
 import re
 
+import httpx
+
 from heimdall.checks import Check, ScanContext, register
 from heimdall.crawler import fill_path
 from heimdall.models import Finding, Severity
@@ -29,6 +31,7 @@ class ExposureCheck(Check):
     wstg = "WSTG-ATHZ-04"
     asvs = "8.3.4"
     cvss_vector = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+    spec_driven = True
 
     def run(self, ctx: ScanContext) -> list[Finding]:
         findings: list[Finding] = []
@@ -43,8 +46,12 @@ class ExposureCheck(Check):
             ctx.trace("step", f"GET {ep.path_template}")
             try:
                 resp = ctx.client.request("GET", url)
+<<<<<<< HEAD
             except Exception:
                 ctx.trace("miss", "request failed.")
+=======
+            except httpx.HTTPError:
+>>>>>>> b8462ef (Fail a scan when scope, the spec, or a destructive method blocks it.)
                 continue
             if resp.status_code >= 400:
                 ctx.trace("miss", f"HTTP {resp.status_code}.")

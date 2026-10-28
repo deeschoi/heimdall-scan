@@ -94,6 +94,8 @@ class Check:
     wstg: str = ""
     asvs: str = ""
     cvss_vector: str = ""
+    spec_driven: bool = False
+    hint_key: Optional[str] = None
 
     def run(self, ctx: ScanContext) -> list[Finding]:  # pragma: no cover - abstract
         raise NotImplementedError
