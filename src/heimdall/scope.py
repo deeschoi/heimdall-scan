@@ -1,9 +1,9 @@
 """Safe-by-default scope enforcement.
 
 A security tool that scans the wrong host gets its author in legal trouble.
-Heimdall refuses to touch anything outside an explicit allowlist. Localhost and
-RFC1918 hosts are allowed by default (labs run there); anything public requires
-``--i-understand`` on the CLI, which adds the host to the allowlist explicitly.
+Heimdall refuses to touch any host that was not named as a target or via
+``--scope``. Named loopback and RFC1918 hosts are allowed. A named public
+host requires ``--i-understand``.
 """
 
 from __future__ import annotations
@@ -63,19 +63,26 @@ class Scope:
         if host:
             self.allow_hosts.add(host)
 
+    def validate(self) -> None:
+        """Refuse named public hosts unless ``--i-understand`` was set."""
+        if self.allow_public:
+            return
+        public = sorted(h for h in self.allow_hosts if not _is_private_host(h))
+        if not public:
+            return
+        listed = ", ".join(repr(h) for h in public)
+        raise ScopeError(
+            f"Refusing to scan public host(s) {listed}. "
+            f"Pass --i-understand to allow public targets."
+        )
+
     def check(self, url: str) -> None:
         host = urlsplit(url).hostname
         if not host:
             raise ScopeError(f"Cannot determine host for URL: {url!r}")
         if host in self.allow_hosts:
             return
-        if _is_private_host(host):
-            self.allow_hosts.add(host)
-            return
-        if self.allow_public:
-            self.allow_hosts.add(host)
-            return
         raise ScopeError(
             f"Refusing to scan out-of-scope host {host!r}. "
-            f"Add it to --scope or pass --i-understand to allow public targets."
+            f"Add it with --scope. Public hosts also need --i-understand."
         )
