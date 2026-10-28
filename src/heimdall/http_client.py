@@ -18,6 +18,25 @@ from heimdall.scope import Scope
 
 _DESTRUCTIVE = {"DELETE", "PUT", "PATCH"}
 _MAX_BODY_EXCERPT = 2048
+_SENSITIVE_HEADERS = {
+    "authorization",
+    "proxy-authorization",
+    "cookie",
+    "set-cookie",
+    "x-api-key",
+    "x-auth-token",
+}
+
+
+def _request_headers(headers) -> dict[str, str]:
+    return {k: v for k, v in headers.items() if k.lower() not in _SENSITIVE_HEADERS}
+
+
+def _response_headers(headers) -> dict[str, str]:
+    return {
+        k: ("[REDACTED]" if k.lower() in _SENSITIVE_HEADERS else v)
+        for k, v in headers.items()
+    }
 
 
 class HttpClient:
@@ -81,10 +100,10 @@ class HttpClient:
         return Evidence(
             request_method=req.method,
             request_url=str(req.url),
-            request_headers={k: v for k, v in req.headers.items() if k.lower() != "authorization"},
+            request_headers=_request_headers(req.headers),
             request_body=body,
             response_status=response.status_code,
-            response_headers=dict(response.headers),
+            response_headers=_response_headers(response.headers),
             response_body_excerpt=response.text[:_MAX_BODY_EXCERPT],
             matcher=matcher,
             note=note,

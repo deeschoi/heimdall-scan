@@ -31,3 +31,40 @@ def test_authorization_header_is_not_captured_in_evidence():
     assert "authorization" not in names
     assert "SUPERSECRET" not in str(evidence.request_headers)
     assert evidence.request_headers["x-trace-id"] == "abc123"
+
+
+@respx.mock
+def test_credential_headers_are_redacted_in_evidence():
+    respx.get(f"{BASE}/me").mock(
+        return_value=httpx.Response(
+            200,
+            text="ok",
+            headers={"Set-Cookie": "session=SECRET", "X-Trace-Id": "abc"},
+        )
+    )
+    client = HttpClient(Scope.from_targets([BASE]), rate_limit_per_sec=0)
+    try:
+        response = client.request(
+            "GET",
+            f"{BASE}/me",
+            headers={
+                "Cookie": "sid=SECRET",
+                "X-Api-Key": "KEY",
+                "X-Trace-Id": "abc123",
+            },
+        )
+        evidence = HttpClient.evidence_from(response)
+    finally:
+        client.close()
+
+    names = {k.lower() for k in evidence.request_headers}
+    assert "cookie" not in names
+    assert "x-api-key" not in names
+    assert "SECRET" not in str(evidence.request_headers)
+    assert "KEY" not in str(evidence.request_headers)
+    assert evidence.request_headers["x-trace-id"] == "abc123"
+
+    response_headers = {k.lower(): v for k, v in evidence.response_headers.items()}
+    assert response_headers["set-cookie"] == "[REDACTED]"
+    assert "SECRET" not in response_headers["set-cookie"]
+    assert response_headers["x-trace-id"] == "abc"
