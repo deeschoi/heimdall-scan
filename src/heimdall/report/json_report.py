@@ -10,7 +10,7 @@ from heimdall.models import Finding
 def render(findings: list[Finding], target: str = "") -> str:
     doc = {
         "tool": "heimdall",
-        "version": "0.1.0",
+        "version": "0.1.29",
         "target": target,
         "summary": _summary(findings),
         "findings": [f.to_dict() for f in findings],

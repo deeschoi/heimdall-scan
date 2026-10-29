@@ -42,7 +42,7 @@ def render(findings: list[Finding], target: str = "") -> str:
             "driver": {
                 "name": "heimdall",
                 "informationUri": "https://github.com/dee/heimdall",
-                "version": "0.1.0",
+                "version": "0.1.29",
                 "rules": list(rules_by_id.values()),
             }
         },

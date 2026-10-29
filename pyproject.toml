@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "heimdall"
-version = "0.1.0"
+version = "0.1.29"
 description = "A DAST CLI for API authz bugs: every finding is a deterministic, replayable check."
 readme = "README.md"
 requires-python = ">=3.10"
