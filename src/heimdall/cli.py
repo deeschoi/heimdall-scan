@@ -36,6 +36,28 @@ from heimdall.scope import Scope, ScopeError
 console = Console()
 err = Console(stderr=True)
 
+# Figlet "slant". The wordmark is yellow and the author line is neon green.
+_WORDMARK = r"""
+    __         _               __      ____
+   / /_  ___  (_)___ ___  ____/ /___ _/ / /
+  / __ \/ _ \/ / __ `__ \/ __  / __ `/ / /
+ / / / /  __/ / / / / / / /_/ / /_/ / / /
+/_/ /_/\___/_/_/ /_/ /_/\__,_/\__,_/_/_/
+""".strip("\n")
+_AUTHOR = "github.com/deeschoi"
+
+
+def _print_version(ctx: click.Context, _param: click.Parameter, value: bool) -> None:
+    if not value or ctx.resilient_parsing:
+        return
+    lines = _WORDMARK.splitlines()
+    for line in lines[:-1]:
+        console.print(f"[yellow]{line}[/yellow]", highlight=False)
+    console.print(f"[yellow]{lines[-1]}[/yellow]      v{__version__}", highlight=False)
+    console.print()
+    console.print(f"[#39ff14]{_AUTHOR}[/#39ff14]", highlight=False)
+    ctx.exit()
+
 SUITE_DIRS = [Path("benchmarks/suites"), Path.cwd() / "benchmarks" / "suites"]
 
 
@@ -51,7 +73,14 @@ def _resolve_suite(name_or_path: str) -> Suite:
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
-@click.version_option(__version__, prog_name="heimdall")
+@click.option(
+    "--version",
+    is_flag=True,
+    is_eager=True,
+    expose_value=False,
+    callback=_print_version,
+    help="Show the version and exit.",
+)
 def main() -> None:
     """Heimdall — API DAST where every finding is a replayable check."""
 
