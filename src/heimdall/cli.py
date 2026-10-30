@@ -36,7 +36,9 @@ from heimdall.scope import Scope, ScopeError
 console = Console()
 err = Console(stderr=True)
 
-# Figlet "slant". The wordmark is yellow and the author line is neon green.
+# Figlet "slant". Truecolor so Terminal.app and Cursor don't remap ANSI yellow.
+# The wordmark is gold; the author line is neon green.
+_GOLD = "#ffb000"
 _WORDMARK = r"""
     __         _               __      ____
    / /_  ___  (_)___ ___  ____/ /___ _/ / /
@@ -52,8 +54,8 @@ def _print_version(ctx: click.Context, _param: click.Parameter, value: bool) -> 
         return
     lines = _WORDMARK.splitlines()
     for line in lines[:-1]:
-        console.print(f"[yellow]{line}[/yellow]", highlight=False)
-    console.print(f"[yellow]{lines[-1]}[/yellow]      v{__version__}", highlight=False)
+        console.print(f"[{_GOLD}]{line}[/{_GOLD}]", highlight=False)
+    console.print(f"[{_GOLD}]{lines[-1]}[/{_GOLD}]      v{__version__}", highlight=False)
     console.print()
     console.print(f"[#39ff14]{_AUTHOR}[/#39ff14]", highlight=False)
     ctx.exit()
