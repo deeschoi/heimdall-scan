@@ -1,7 +1,7 @@
 # Heimdall
 
-<p align = "center">
-  <img src = "docs/Heimdall.jpeg" alt = "Heimdall" width = "600">
+<p align="center">
+  <img src="docs/Heimdall.jpeg" alt="Heimdall" width="600">
 </p>
 
 An API-focused DAST CLI where **every finding is a deterministic, replayable
@@ -13,6 +13,9 @@ against frozen ground truth on deliberately-vulnerable benchmarks (VAmPI, crAPI)
 and checks a `vulnerable=0` control target produces zero findings.
 
 ## Current status
+<p align = "left">
+  <img src="docs/banner.png" alt="banner" width="250">
+</p>
 
 | Target | State | Result |
 |---|---|---|
