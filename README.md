@@ -145,8 +145,9 @@ Scan and export:
 heimdall scan --suite vampi --format md                 # human report
 heimdall scan --suite vampi --format sarif --out o.sarif # GitHub Code Scanning
 heimdall scan --suite vampi --format json --out o.json  # machine / baseline
-heimdall replay o.json                                  # re-confirm each finding
-heimdall replay o.json --unsafe                         # also replay PUT/DELETE/PATCH
+heimdall replay o.json --target http://127.0.0.1:5001  # re-confirm each finding (GET only)
+heimdall replay o.json --target http://127.0.0.1:5001 --allow-post  # also replay POST
+heimdall replay o.json --target http://127.0.0.1:5001 --unsafe      # every method, PUT/DELETE/PATCH included
 heimdall explain o.json <fingerprint>                   # evidence for one finding
 heimdall gate o.json --accepted-risk accepted-risk.yml --fail-on high
 ```
@@ -214,9 +215,12 @@ three are informative on their own:
 
 ## Safety (see `docs/threat-model.md`)
 
-- **Scope allowlist** — only hosts named with `--target` or `--scope`. Loopback and RFC1918 names are allowed; a public host requires `--i-understand`.
-- **No destructive methods** — `PUT/DELETE/PATCH` blocked unless `--unsafe`, including `replay`.
-- **TLS verified** — certificate checks are on unless `--insecure`.
+- **Scope allowlist** — only the `host:port` of `--target`, plus `--scope` entries (`--scope host:port`, or a bare `--scope host` for every port). Loopback and RFC1918 names are allowed; a hostname must resolve only to private addresses, which are then pinned; a public host requires `--i-understand`. The OpenAPI spec fetch and redirects are checked too.
+- **Replay stays in scope** — `replay` contacts only hosts named with `--target`/`--scope`, never hosts taken from the report file.
+- **No destructive methods** — only `GET/HEAD/OPTIONS/POST` are sent without `--unsafe`, including in `replay` (which also needs `--allow-post` for POST).
+- **TLS verified** — certificate checks are on unless `--insecure`, for the spec fetch as well.
+- **No credentials in reports** — identity headers and tokens, and `user:pass@` in URLs, are kept out of evidence and reports.
+- **Untrusted text stays inert** — target and report text is printed with escape sequences shown, not run, and cannot break the Markdown report's structure.
 - **Rate limited** — `--rate-limit` (default 20 rps). Login uses the same client.
 
 ## Layout
