@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import httpx
 
-from heimdall.checks import Check, ScanContext, register
+from heimdall.checks import Check, ScanContext, register, replay_headers
 from heimdall.models import Finding, Severity
 
 
@@ -48,7 +48,7 @@ class BolaCheck(Check):
         ev = finding.evidence[0]
         canary = ev.note.split("canary=", 1)[-1] if "canary=" in ev.note else None
         resp = ctx.client.request(
-            ev.request_method, ev.request_url, headers=ev.request_headers,
+            ev.request_method, ev.request_url, headers=replay_headers(ev.request_headers),
         )
         return bool(canary and canary in (resp.text or ""))
 

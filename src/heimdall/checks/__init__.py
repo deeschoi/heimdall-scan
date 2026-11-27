@@ -19,6 +19,27 @@ from heimdall.http_client import HttpClient
 from heimdall.models import Finding
 from heimdall.scope import ScopeError, url_host_port
 
+# Headers that describe one connection, not the request. A replayed report must
+# not choose them: a stored Host header would aim the request at another vhost.
+_HOP_HEADERS = {
+    "host",
+    "content-length",
+    "transfer-encoding",
+    "connection",
+    "keep-alive",
+    "te",
+    "trailer",
+    "upgrade",
+    "proxy-connection",
+    "proxy-authenticate",
+    "proxy-authorization",
+}
+
+
+def replay_headers(headers: Optional[dict[str, str]]) -> dict[str, str]:
+    """Stored evidence headers minus connection-level ones, for re-sending."""
+    return {k: v for k, v in (headers or {}).items() if k.lower() not in _HOP_HEADERS}
+
 
 @dataclass
 class TraceEvent:
@@ -131,7 +152,7 @@ class Check:
         resp = ctx.client.request(
             ev.request_method,
             ev.request_url,
-            headers=ev.request_headers,
+            headers=replay_headers(ev.request_headers),
             content=ev.request_body,
         )
         return self.oracle(resp.status_code, resp.text)

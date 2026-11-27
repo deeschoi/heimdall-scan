@@ -191,17 +191,26 @@ def list_checks_cmd():
 
 @main.command()
 @click.argument("report", type=click.Path(exists=True))
-@click.option("--scope", "scope_hosts", multiple=True)
-@click.option("--i-understand", "allow_public", is_flag=True)
-@click.option("--unsafe", is_flag=True, help="Permit destructive HTTP methods (PUT/DELETE/PATCH).")
+@click.option("--target", "targets", multiple=True, help="Host to replay against (repeatable). Required unless --scope is given.")
+@click.option("--scope", "scope_hosts", multiple=True, help="Extra in-scope host (repeatable).")
+@click.option("--i-understand", "allow_public", is_flag=True, help="Allow non-private hosts.")
+@click.option("--allow-post", is_flag=True, help="Permit replaying POST requests.")
+@click.option("--unsafe", is_flag=True, help="Permit every method, destructive ones included.")
 @click.option("--insecure", is_flag=True, help="Do not verify TLS certificates.")
-def replay(report, scope_hosts, allow_public, unsafe, insecure):
-    """Re-issue each finding's evidence request and re-run its matcher."""
+def replay(report, targets, scope_hosts, allow_public, allow_post, unsafe, insecure):
+    """Re-issue each finding's evidence request and re-run its matcher.
+
+    Scope comes only from --target/--scope, never from the report: a report is
+    a data file that may have been written or edited by someone else.
+    """
+    if not targets and not scope_hosts:
+        raise click.ClickException(
+            "replay needs --target (or --scope): the hosts it may contact are never "
+            "taken from the report file."
+        )
     load_builtin_checks()
     findings = _load_findings(report)
-    scope = Scope.from_targets([f.url for f in findings], allow_public=allow_public)
-    for h in scope_hosts:
-        scope.allow_hosts.add(h)
+    scope = Scope.from_targets(list(targets) + list(scope_hosts), allow_public=allow_public)
     try:
         scope.validate()
     except ScopeError as exc:
@@ -210,16 +219,31 @@ def replay(report, scope_hosts, allow_public, unsafe, insecure):
     with HttpClient(scope, unsafe=unsafe, verify_tls=not insecure) as client:
         from heimdall.checks import ScanContext
 
+        for t in targets:
+            client.adopt_userinfo(t)
         for f in findings:
-            check = get_check(f.check_id)
-            ctx = ScanContext(base_url=f.url, client=client)
+            label = escape(one_line(f"{f.check_id:16} {f.method} {f.path_template}"))
+            try:
+                check = get_check(f.check_id)
+            except KeyError:
+                console.print(f"[yellow]UNKNOWN CHECK[/yellow]  {label}")
+                continue
+            method = (f.evidence[0].request_method if f.evidence else "").upper()
+            if method in ("", "-"):
+                # Offline evidence (e.g. a JWT secret verified locally): nothing to send.
+                console.print(f"[yellow]NO-ORACLE[/yellow]  {label}")
+                continue
+            if method == "POST" and not (allow_post or unsafe):
+                console.print(f"[yellow]BLOCKED (pass --allow-post)[/yellow]  {label}")
+                continue
+            ctx = ScanContext(base_url=strip_userinfo(f.url), client=client)
             try:
                 confirmed = check.replay(f, ctx)
+            except ScopeError as exc:
+                console.print(f"[yellow]OUT OF SCOPE[/yellow]  {label}  ({escape(one_line(exc))})")
+                continue
             except PermissionError:
-                console.print(
-                    f"[yellow]BLOCKED (pass --unsafe)[/yellow]  "
-                    f"{f.check_id:16} {f.method} {f.path_template}"
-                )
+                console.print(f"[yellow]BLOCKED (pass --unsafe)[/yellow]  {label}")
                 continue
             except NotImplementedError:
                 confirmed = None
@@ -227,7 +251,7 @@ def replay(report, scope_hosts, allow_public, unsafe, insecure):
                 "[yellow]NO-ORACLE[/yellow]" if confirmed is None else "[red]NOT REPRODUCED[/red]"
             )
             ok += 1 if confirmed else 0
-            console.print(f"{mark}  {f.check_id:16} {f.method} {f.path_template}")
+            console.print(f"{mark}  {label}")
     console.print(f"\nReplayed {len(findings)} findings; {ok} reconfirmed.")
 
 
