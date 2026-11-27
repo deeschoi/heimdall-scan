@@ -46,6 +46,21 @@ These prove the scanner doesn't cry wolf on safe code that resembles the bugs:
 Both are probed during `eval`; either one firing would show up as a false
 positive (precision < 1.0), which is exactly the regression this guards against.
 
+## Not planted: fixed in both builds
+
+Only the bugs in the table above are planted. These were accidental, so both
+builds fix them (`tests/test_vulnapp_app.py`):
+
+- `POST /api/notes` refuses (409) an id that already belongs to another user, so
+  a note cannot be taken over by writing to its id.
+- `/ui/notes` lists only the caller's own notes, and nothing without a bearer
+  token. The home page no longer embeds notes.
+- The products database lives in a fresh `0700` folder from `tempfile.mkdtemp`,
+  not at a predictable path in the shared temp directory.
+
+Run the vulnerable build on loopback only: `benchmarks/compose.yml` publishes
+every port on `127.0.0.1`, and `python -m vulnapp` defaults to `127.0.0.1`.
+
 ## Result
 
 ```
