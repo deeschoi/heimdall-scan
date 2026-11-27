@@ -7,10 +7,12 @@ This is why the scanner works against JSON APIs that have no browsable UI.
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
-import httpx
+if TYPE_CHECKING:  # pragma: no cover
+    from heimdall.http_client import HttpClient
 
 
 @dataclass
@@ -38,20 +40,23 @@ class Endpoint:
         return [p for p in self.params if p.location == "query"]
 
 
-def load_spec(source: str, client: Optional[httpx.Client] = None) -> dict[str, Any]:
-    """Load an OpenAPI document from a URL or local path."""
+def load_spec(source: str, client: Optional["HttpClient"] = None) -> dict[str, Any]:
+    """Load an OpenAPI document from a URL or local path.
+
+    A URL is fetched only through ``client`` -- the scan's :class:`HttpClient` --
+    so the fetch is scope-checked, rate-limited and honours ``--insecure`` like
+    every other request.
+    """
     import json
 
     import yaml
 
     if source.startswith(("http://", "https://")):
-        owns = client is None
-        client = client or httpx.Client(timeout=10.0, verify=False)
-        try:
-            text = client.get(source).text
-        finally:
-            if owns:
-                client.close()
+        if client is None:
+            raise ValueError(
+                f"fetching the OpenAPI spec from {source} needs the scan's HttpClient"
+            )
+        text = client.request("GET", source).text
     else:
         with open(source, "r", encoding="utf-8") as fh:
             text = fh.read()
@@ -61,10 +66,28 @@ def load_spec(source: str, client: Optional[httpx.Client] = None) -> dict[str, A
         return yaml.safe_load(text)
 
 
+def _safe_path(path: Any) -> bool:
+    """A spec path must be a rooted path with no control characters.
+
+    Paths are appended to the target's base URL, so a key such as
+    ``@127.0.0.1:2375/x`` would otherwise move the request to another
+    authority (host and port).
+    """
+    if not isinstance(path, str) or not path.startswith("/"):
+        return False
+    return not any(ord(ch) < 0x20 or 0x7F <= ord(ch) <= 0x9F for ch in path)
+
+
 def parse_endpoints(spec: dict[str, Any]) -> list[Endpoint]:
     endpoints: list[Endpoint] = []
     methods = {"get", "post", "put", "delete", "patch", "head", "options"}
     for path, item in (spec.get("paths") or {}).items():
+        if not _safe_path(path):
+            print(
+                f"[warn] skipping OpenAPI path {path!r}: not a rooted path",
+                file=sys.stderr,
+            )
+            continue
         shared = item.get("parameters", []) if isinstance(item, dict) else []
         for method, op in (item or {}).items():
             if method not in methods or not isinstance(op, dict):
@@ -108,9 +131,3 @@ def fill_path(path_template: str, values: dict[str, str]) -> str:
         out = out.replace("{" + name + "}", str(val))
     return out
 
-
-def iter_specs(sources: Iterable[str]) -> list[Endpoint]:
-    endpoints: list[Endpoint] = []
-    for src in sources:
-        endpoints.extend(parse_endpoints(load_spec(src)))
-    return endpoints

@@ -27,7 +27,7 @@ from heimdall import __version__
 from heimdall.checks import all_check_ids, get_check, load_builtin_checks
 from heimdall.engine import ScanError, Suite, scan, scan_suite
 from heimdall.eval import evaluate
-from heimdall.http_client import HttpClient
+from heimdall.http_client import HttpClient, strip_userinfo
 from heimdall.models import Finding, Severity
 from heimdall.report import render
 from heimdall.report.safe_text import one_line, terminal_safe
@@ -139,7 +139,7 @@ def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_p
 
     report_fmt = "md" if fmt == "markdown" else fmt
     trace = log.events if log is not None and report_fmt == "md" else None
-    report = render(report_fmt, findings, target=target or "", trace=trace)
+    report = render(report_fmt, findings, target=strip_userinfo(target or ""), trace=trace)
     if out:
         Path(out).write_text(report, encoding="utf-8")
         err.print(f"[green]Wrote {len(findings)} findings to {out}[/green]")
