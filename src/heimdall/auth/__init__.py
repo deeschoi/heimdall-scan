@@ -113,5 +113,11 @@ def build_identities(
         else:  # none
             ident = Identity(name=name)
         ident.name = name
+        # Whatever header an identity uses to carry its credential, the scan's
+        # evidence must not keep it -- nor the token, wherever it shows up.
+        for header, value in ident.headers.items():
+            client.register_secret(header=header, value=value)
+        if ident.token:
+            client.register_secret(value=str(ident.token))
         identities[name] = ident
     return identities
