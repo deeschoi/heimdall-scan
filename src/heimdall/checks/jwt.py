@@ -82,7 +82,8 @@ class JwtCheck(Check):
             return None
         alg = header.get("alg", "")
         if not alg.upper().startswith("HS"):
-            ctx.trace("miss", f"token alg {alg or 'unknown'} is not HMAC.")
+            # alg comes from the target's token: repr() keeps it printable.
+            ctx.trace("miss", f"token alg {alg!r} is not HMAC." if alg else "token alg is unknown, not HMAC.")
             return None
         ctx.trace("step", "Checking the login token against a short HMAC wordlist.")
         for secret in ctx.load_payloads("jwt-secrets.txt") or _DEFAULT_SECRETS:

@@ -7,6 +7,11 @@
 #
 # VAmPI is run twice: vulnerable=1 (scored) and vulnerable=0 (false-positive
 # control). crAPI has its own large compose at crAPI-main/deploy/docker.
+#
+# Every port is published on 127.0.0.1 only: these targets are vulnerable on
+# purpose, and a bare "8000:8000" would expose them (vulnapp's SSRF included)
+# to everyone on the operator's network. Inside the containers the apps still
+# listen on 0.0.0.0 -- that is what lets Docker forward to them.
 services:
   # Heimdall's OWN target (this repo). Two builds: vulnerable (scored) and
   # hardened (false-positive control). See vulnapp/ and suites/vulnapp.yaml.
@@ -17,7 +22,7 @@ services:
     environment:
       - VULNAPP_SAFE=0
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
 
   vulnapp-safe:
     build:
@@ -26,7 +31,7 @@ services:
     environment:
       - VULNAPP_SAFE=1
     ports:
-      - "8001:8000"
+      - "127.0.0.1:8001:8000"
 
   vampi-vuln:
     image: erev0s/vampi:latest
@@ -35,7 +40,7 @@ services:
       - vulnerable=1
       - tokentimetolive=300
     ports:
-      - "5001:5000"
+      - "127.0.0.1:5001:5000"
 
   vampi-safe:
     image: erev0s/vampi:latest
@@ -44,7 +49,7 @@ services:
       - vulnerable=0
       - tokentimetolive=300
     ports:
-      - "5002:5000"
+      - "127.0.0.1:5002:5000"
 
   # Optional breadth/demo target (CTF-style; used as a stretch suite, not a
   # resume metric). Comment out if you don't need it.
@@ -52,4 +57,4 @@ services:
     image: bkimminich/juice-shop:latest
     container_name: juice-shop
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"

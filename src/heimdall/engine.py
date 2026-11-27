@@ -64,15 +64,23 @@ class Suite:
         return p
 
 
-def _load_endpoints(openapi: Optional[str], checks: list[Check]) -> list:
-    """Load the OpenAPI document, or fail when a spec-driven check needs it."""
+def _load_endpoints(
+    openapi: Optional[str], checks: list[Check], client: HttpClient
+) -> list:
+    """Load the OpenAPI document, or fail when a spec-driven check needs it.
+
+    A spec URL is fetched through the scan's ``client``: scope-checked,
+    rate-limited, and TLS-verified unless ``--insecure``.
+    """
     needs_spec = any(c.spec_driven for c in checks)
     if not openapi:
         if needs_spec:
             raise ScanError("could not load OpenAPI spec: not provided")
         return []
     try:
-        return parse_endpoints(load_spec(openapi))
+        return parse_endpoints(load_spec(openapi, client))
+    except ScopeError:
+        raise
     except Exception as exc:
         if needs_spec:
             raise ScanError(
@@ -103,23 +111,31 @@ def scan(
 ) -> list[Finding]:
     """Run the given checks against ``target`` and return findings."""
     load_builtin_checks()
-    scope = Scope.from_targets([target] + (scope_hosts or []), allow_public=allow_public)
+    is_spec_url = bool(openapi) and str(openapi).startswith(("http://", "https://"))
+    # The spec URL is operator-named (flag or suite), so its host:port is in scope.
+    named = [target] + (scope_hosts or []) + ([openapi] if is_spec_url else [])
+    scope = Scope.from_targets(named, allow_public=allow_public)
     scope.validate()
     checks = [get_check(cid) for cid in check_ids]
-
-    endpoints = _load_endpoints(openapi, checks)
-
-    # Drop side-effecting / utility endpoints (e.g. /createdb) from the crawl so
-    # crawl-based checks don't mutate the target and invalidate other checks.
-    exclude = exclude or []
-    if exclude:
-        endpoints = [e for e in endpoints if e.path_template not in exclude]
 
     findings: list[Finding] = []
     hint_map = hints or {}
     with HttpClient(
         scope, rate_limit_per_sec=rate_limit, unsafe=unsafe, verify_tls=verify_tls
     ) as client:
+        # user:pass@ in a URL becomes Basic auth for that host only, and never
+        # reaches a finding's url, evidence, or the report.
+        target = client.adopt_userinfo(target)
+        if is_spec_url:
+            openapi = client.adopt_userinfo(openapi)
+        endpoints = _load_endpoints(openapi, checks, client)
+
+        # Drop side-effecting / utility endpoints (e.g. /createdb) from the crawl so
+        # crawl-based checks don't mutate the target and invalidate other checks.
+        exclude = exclude or []
+        if exclude:
+            endpoints = [e for e in endpoints if e.path_template not in exclude]
+
         identities = build_identities(target, auth or {}, client)
         ctx = ScanContext(
             base_url=target,

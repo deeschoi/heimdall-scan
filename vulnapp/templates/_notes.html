@@ -1,8 +1,15 @@
+{% if not signed_in %}
+<p>Sign in through the API (<code>POST /api/login</code>) and send the bearer
+   token to list your notes.</p>
+{% elif not notes %}
+<p>You have no notes yet.</p>
+{% else %}
 <table>
-  <thead><tr><th>Title</th><th>Owner</th><th>Tenant</th></tr></thead>
+  <thead><tr><th>Title</th></tr></thead>
   <tbody>
     {% for n in notes %}
-    <tr><td>{{ n.title }}</td><td>{{ n.owner }}</td><td>{{ n.tenant }}</td></tr>
+    <tr><td>{{ n.title }}</td></tr>
     {% endfor %}
   </tbody>
 </table>
+{% endif %}

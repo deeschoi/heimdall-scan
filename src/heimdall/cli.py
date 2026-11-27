@@ -20,15 +20,17 @@ from typing import Optional
 
 import click
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from heimdall import __version__
 from heimdall.checks import all_check_ids, get_check, load_builtin_checks
 from heimdall.engine import ScanError, Suite, scan, scan_suite
 from heimdall.eval import evaluate
-from heimdall.http_client import HttpClient
+from heimdall.http_client import HttpClient, strip_userinfo
 from heimdall.models import Finding, Severity
 from heimdall.report import render
+from heimdall.report.safe_text import one_line, terminal_safe
 from heimdall.report.trace import TraceLog
 from heimdall.risk import RiskRegisterError, apply_filters, fail_on
 from heimdall.scope import Scope, ScopeError
@@ -137,14 +139,13 @@ def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_p
 
     report_fmt = "md" if fmt == "markdown" else fmt
     trace = log.events if log is not None and report_fmt == "md" else None
-    report = render(report_fmt, findings, target=target or "", trace=trace)
+    report = render(report_fmt, findings, target=strip_userinfo(target or ""), trace=trace)
     if out:
         Path(out).write_text(report, encoding="utf-8")
         err.print(f"[green]Wrote {len(findings)} findings to {out}[/green]")
     else:
         if fmt in ("md", "markdown"):
-            # The transcript contains severity tags like [HIGH]; leave them literal.
-            console.print(report, markup=False, highlight=False)
+            _print_report(report)
         else:
             click.echo(report)
 
@@ -190,17 +191,26 @@ def list_checks_cmd():
 
 @main.command()
 @click.argument("report", type=click.Path(exists=True))
-@click.option("--scope", "scope_hosts", multiple=True)
-@click.option("--i-understand", "allow_public", is_flag=True)
-@click.option("--unsafe", is_flag=True, help="Permit destructive HTTP methods (PUT/DELETE/PATCH).")
+@click.option("--target", "targets", multiple=True, help="Host to replay against (repeatable). Required unless --scope is given.")
+@click.option("--scope", "scope_hosts", multiple=True, help="Extra in-scope host (repeatable).")
+@click.option("--i-understand", "allow_public", is_flag=True, help="Allow non-private hosts.")
+@click.option("--allow-post", is_flag=True, help="Permit replaying POST requests.")
+@click.option("--unsafe", is_flag=True, help="Permit every method, destructive ones included.")
 @click.option("--insecure", is_flag=True, help="Do not verify TLS certificates.")
-def replay(report, scope_hosts, allow_public, unsafe, insecure):
-    """Re-issue each finding's evidence request and re-run its matcher."""
+def replay(report, targets, scope_hosts, allow_public, allow_post, unsafe, insecure):
+    """Re-issue each finding's evidence request and re-run its matcher.
+
+    Scope comes only from --target/--scope, never from the report: a report is
+    a data file that may have been written or edited by someone else.
+    """
+    if not targets and not scope_hosts:
+        raise click.ClickException(
+            "replay needs --target (or --scope): the hosts it may contact are never "
+            "taken from the report file."
+        )
     load_builtin_checks()
     findings = _load_findings(report)
-    scope = Scope.from_targets([f.url for f in findings], allow_public=allow_public)
-    for h in scope_hosts:
-        scope.allow_hosts.add(h)
+    scope = Scope.from_targets(list(targets) + list(scope_hosts), allow_public=allow_public)
     try:
         scope.validate()
     except ScopeError as exc:
@@ -209,16 +219,31 @@ def replay(report, scope_hosts, allow_public, unsafe, insecure):
     with HttpClient(scope, unsafe=unsafe, verify_tls=not insecure) as client:
         from heimdall.checks import ScanContext
 
+        for t in targets:
+            client.adopt_userinfo(t)
         for f in findings:
-            check = get_check(f.check_id)
-            ctx = ScanContext(base_url=f.url, client=client)
+            label = escape(one_line(f"{f.check_id:16} {f.method} {f.path_template}"))
+            try:
+                check = get_check(f.check_id)
+            except KeyError:
+                console.print(f"[yellow]UNKNOWN CHECK[/yellow]  {label}")
+                continue
+            method = (f.evidence[0].request_method if f.evidence else "").upper()
+            if method in ("", "-"):
+                # Offline evidence (e.g. a JWT secret verified locally): nothing to send.
+                console.print(f"[yellow]NO-ORACLE[/yellow]  {label}")
+                continue
+            if method == "POST" and not (allow_post or unsafe):
+                console.print(f"[yellow]BLOCKED (pass --allow-post)[/yellow]  {label}")
+                continue
+            ctx = ScanContext(base_url=strip_userinfo(f.url), client=client)
             try:
                 confirmed = check.replay(f, ctx)
+            except ScopeError as exc:
+                console.print(f"[yellow]OUT OF SCOPE[/yellow]  {label}  ({escape(one_line(exc))})")
+                continue
             except PermissionError:
-                console.print(
-                    f"[yellow]BLOCKED (pass --unsafe)[/yellow]  "
-                    f"{f.check_id:16} {f.method} {f.path_template}"
-                )
+                console.print(f"[yellow]BLOCKED (pass --unsafe)[/yellow]  {label}")
                 continue
             except NotImplementedError:
                 confirmed = None
@@ -226,7 +251,7 @@ def replay(report, scope_hosts, allow_public, unsafe, insecure):
                 "[yellow]NO-ORACLE[/yellow]" if confirmed is None else "[red]NOT REPRODUCED[/red]"
             )
             ok += 1 if confirmed else 0
-            console.print(f"{mark}  {f.check_id:16} {f.method} {f.path_template}")
+            console.print(f"{mark}  {label}")
     console.print(f"\nReplayed {len(findings)} findings; {ok} reconfirmed.")
 
 
@@ -263,7 +288,7 @@ def sast_cmd(rules_dir, src_dir, fmt, out, fail_on_sev):
         Path(out).write_text(report, encoding="utf-8")
         err.print(f"[green]Wrote {len(findings)} findings to {out}[/green]")
     else:
-        console.print(report) if fmt in ("md", "markdown") else click.echo(report)
+        _print_report(report) if fmt in ("md", "markdown") else click.echo(report)
 
     _print_summary(findings, src_dir)
     if fail_on_sev and fail_on(findings, fail_on_sev):
@@ -288,7 +313,7 @@ def correlate_cmd(dast_report, sast_report, fmt, out):
         Path(out).write_text(rendered, encoding="utf-8")
         err.print(f"[green]Wrote correlation report to {out}[/green]")
     else:
-        console.print(rendered) if fmt in ("md", "markdown") else click.echo(rendered)
+        _print_report(rendered) if fmt in ("md", "markdown") else click.echo(rendered)
 
     err.print(
         f"[bold]{len(result.correlated)} correlated[/bold], "
@@ -318,7 +343,7 @@ def gate_cmd(report, accepted_risk, baseline, fail_on_sev, fmt, out):
         Path(out).write_text(rendered, encoding="utf-8")
         err.print(f"[green]Wrote {len(findings)} findings to {out}[/green]")
     else:
-        console.print(rendered) if fmt in ("md", "markdown") else click.echo(rendered)
+        _print_report(rendered) if fmt in ("md", "markdown") else click.echo(rendered)
 
     _print_summary(findings, target or None)
     if fail_on_sev and fail_on(findings, fail_on_sev):
@@ -326,6 +351,15 @@ def gate_cmd(report, accepted_risk, baseline, fail_on_sev, fmt, out):
 
 
 # --- helpers ----------------------------------------------------------
+
+def _print_report(text: str) -> None:
+    """Print a rendered report to the terminal, literally.
+
+    Reports carry text from the scanned target or source tree, so Rich markup
+    stays off and control characters (ANSI/OSC escapes) are shown escaped.
+    """
+    console.print(terminal_safe(text), markup=False, highlight=False)
+
 
 def _print_summary(findings: list[Finding], target: Optional[str]) -> None:
     counts: dict[str, int] = {}
@@ -348,11 +382,11 @@ def _print_eval(r) -> None:
     if r.missed:
         err.print("[yellow]Missed (false negatives):[/yellow]")
         for m in r.missed:
-            err.print(f"  - {m['id']}: {m['endpoint']} ({m['check']})")
+            err.print(escape(one_line(f"  - {m['id']}: {m['endpoint']} ({m['check']})")))
     if r.unexpected:
         err.print("[yellow]Unexpected findings (not in ground truth):[/yellow]")
         for u in r.unexpected:
-            err.print(f"  - {u}")
+            err.print(escape(one_line(f"  - {u}")))
 
 
 def _apply_filters(findings: list[Finding], *, accepted_risk, baseline) -> list[Finding]:

@@ -11,11 +11,34 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
+from urllib.parse import urlsplit
 
 from heimdall.auth import Identity
 from heimdall.crawler import Endpoint
 from heimdall.http_client import HttpClient
 from heimdall.models import Finding
+from heimdall.scope import ScopeError, url_host_port
+
+# Headers that describe one connection, not the request. A replayed report must
+# not choose them: a stored Host header would aim the request at another vhost.
+_HOP_HEADERS = {
+    "host",
+    "content-length",
+    "transfer-encoding",
+    "connection",
+    "keep-alive",
+    "te",
+    "trailer",
+    "upgrade",
+    "proxy-connection",
+    "proxy-authenticate",
+    "proxy-authorization",
+}
+
+
+def replay_headers(headers: Optional[dict[str, str]]) -> dict[str, str]:
+    """Stored evidence headers minus connection-level ones, for re-sending."""
+    return {k: v for k, v in (headers or {}).items() if k.lower() not in _HOP_HEADERS}
 
 
 @dataclass
@@ -46,7 +69,24 @@ class ScanContext:
     check_id: str = ""
 
     def url(self, path: str) -> str:
-        return self.base_url.rstrip("/") + path
+        """Join ``path`` onto the base URL; it must stay on the same authority.
+
+        Paths come from the target's own spec and from suite hints, so a
+        crafted path such as ``@other-host:2375/x`` must not be able to move
+        the request to another host or port.
+        """
+        out = self.base_url.rstrip("/") + path
+        base = urlsplit(self.base_url)
+        joined = urlsplit(out)
+        if (
+            joined.scheme != base.scheme
+            or url_host_port(out) != url_host_port(self.base_url)
+            or joined.username is not None
+        ):
+            raise ScopeError(
+                f"Refusing path {path!r}: it moves the request off {self.base_url}"
+            )
+        return out
 
     def trace(
         self,
@@ -112,7 +152,7 @@ class Check:
         resp = ctx.client.request(
             ev.request_method,
             ev.request_url,
-            headers=ev.request_headers,
+            headers=replay_headers(ev.request_headers),
             content=ev.request_body,
         )
         return self.oracle(resp.status_code, resp.text)

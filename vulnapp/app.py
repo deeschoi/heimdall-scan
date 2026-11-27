@@ -53,7 +53,9 @@ JWT_ALG = "HS256"
 FETCH_ALLOWLIST = {"example.com", "www.example.com"}
 
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
-DB_PATH = Path(tempfile.gettempdir()) / f"vulnapp_{os.getpid()}.db"
+# A fresh 0700 folder per process: no other local user can pre-create or swap
+# the database file (a predictable name in the shared temp dir allowed that).
+DB_PATH = Path(tempfile.mkdtemp(prefix="vulnapp-")) / "products.db"
 
 
 # --- in-memory tenants / users / notes ------------------------------------
@@ -157,6 +159,14 @@ def _current_user(authorization: Optional[str] = Header(default=None)) -> dict[s
     return user
 
 
+def _optional_user(authorization: Optional[str] = Header(default=None)) -> Optional[dict[str, Any]]:
+    """The caller if a usable bearer token was sent, else ``None`` (UI routes)."""
+    try:
+        return _current_user(authorization)
+    except HTTPException:
+        return None
+
+
 # --- request models -------------------------------------------------------
 class RegisterIn(BaseModel):
     username: str
@@ -197,15 +207,19 @@ def create_app() -> FastAPI:
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     def home(request: Request):
         return TEMPLATES.TemplateResponse(
-            "index.html",
-            {"request": request, "safe": SAFE, "products": _list_products(),
-             "notes": list(_NOTES.values())},
+            request, "index.html", {"safe": SAFE, "products": _list_products()},
         )
 
     @app.get("/ui/notes", response_class=HTMLResponse, include_in_schema=False)
-    def ui_notes(request: Request):
+    def ui_notes(request: Request, user: Optional[dict] = Depends(_optional_user)):
+        # Both builds: only the caller's own notes, and nothing without a login.
+        # (Not a planted bug -- listing every tenant's notes here was accidental.)
+        notes = (
+            [n for n in _NOTES.values() if n.get("owner") == user.get("username")]
+            if user else []
+        )
         return TEMPLATES.TemplateResponse(
-            "_notes.html", {"request": request, "notes": list(_NOTES.values())}
+            request, "_notes.html", {"notes": notes, "signed_in": user is not None},
         )
 
     # A stand-in for the cloud metadata service (AWS IMDS at 169.254.169.254).
@@ -275,6 +289,12 @@ def create_app() -> FastAPI:
 
     @app.post("/api/notes")
     def create_note(payload: NoteIn, user: dict = Depends(_current_user)):
+        # Both builds: an id that belongs to someone else cannot be taken over.
+        # (Not a planted bug -- the overwrite was accidental, and in the
+        # hardened build it bypassed the read-side ownership check.)
+        existing = _NOTES.get(payload.id)
+        if existing is not None and existing.get("owner") != user.get("username"):
+            raise HTTPException(status_code=409, detail="note id already taken")
         note = {
             "id": payload.id,
             "title": payload.title,
