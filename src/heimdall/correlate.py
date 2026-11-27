@@ -23,6 +23,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from heimdall.models import Finding
+from heimdall.report.safe_text import md_code, md_text
 
 
 @dataclass
@@ -87,21 +88,31 @@ def render_markdown(result: CorrelationResult) -> str:
         lines.append("")
         for pair in result.correlated:
             d, s = pair["dast"], pair["sast"]
-            lines.append(f"### {d.method} {d.path_template} — {d.title} ({d.cwe})")
-            lines.append(f"- DAST: `{d.check_id}` — {d.url}")
-            lines.append(f"- SAST: `{s.check_id}` — {s.url}")
+            lines.append(
+                f"### {md_code(f'{d.method} {d.path_template}')} — "
+                f"{md_text(d.title)} ({md_text(d.cwe)})"
+            )
+            lines.append(f"- DAST: {md_code(d.check_id)} — {md_code(d.url)}")
+            lines.append(f"- SAST: {md_code(s.check_id)} — {md_code(s.url)}")
             lines.append("")
     if result.dast_only:
         lines.append("## DAST only — proven live, no matching static hit")
         lines.append("")
         for d in result.dast_only:
-            lines.append(f"- `{d.check_id}` {d.method} {d.path_template} ({d.cwe}) — {d.url}")
+            lines.append(
+                f"- {md_code(d.check_id)} {md_code(f'{d.method} {d.path_template}')} "
+                f"({md_text(d.cwe)}) — {md_code(d.url)}"
+            )
         lines.append("")
     if result.sast_only:
         lines.append("## SAST only — static candidate, not confirmed at runtime")
         lines.append("")
         for s in result.sast_only:
-            lines.append(f"- `{s.check_id}` {s.method or 'UNKNOWN'} {s.path_template or '(unresolved route)'} ({s.cwe}) — {s.url}")
+            endpoint = f"{s.method or 'UNKNOWN'} {s.path_template or '(unresolved route)'}"
+            lines.append(
+                f"- {md_code(s.check_id)} {md_code(endpoint)} "
+                f"({md_text(s.cwe)}) — {md_code(s.url)}"
+            )
         lines.append("")
     return "\n".join(lines)
 

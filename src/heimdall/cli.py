@@ -20,6 +20,7 @@ from typing import Optional
 
 import click
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from heimdall import __version__
@@ -29,6 +30,7 @@ from heimdall.eval import evaluate
 from heimdall.http_client import HttpClient
 from heimdall.models import Finding, Severity
 from heimdall.report import render
+from heimdall.report.safe_text import one_line, terminal_safe
 from heimdall.report.trace import TraceLog
 from heimdall.risk import RiskRegisterError, apply_filters, fail_on
 from heimdall.scope import Scope, ScopeError
@@ -143,8 +145,7 @@ def scan_cmd(target, suite_name, openapi, checks, fmt, out, scope_hosts, allow_p
         err.print(f"[green]Wrote {len(findings)} findings to {out}[/green]")
     else:
         if fmt in ("md", "markdown"):
-            # The transcript contains severity tags like [HIGH]; leave them literal.
-            console.print(report, markup=False, highlight=False)
+            _print_report(report)
         else:
             click.echo(report)
 
@@ -263,7 +264,7 @@ def sast_cmd(rules_dir, src_dir, fmt, out, fail_on_sev):
         Path(out).write_text(report, encoding="utf-8")
         err.print(f"[green]Wrote {len(findings)} findings to {out}[/green]")
     else:
-        console.print(report) if fmt in ("md", "markdown") else click.echo(report)
+        _print_report(report) if fmt in ("md", "markdown") else click.echo(report)
 
     _print_summary(findings, src_dir)
     if fail_on_sev and fail_on(findings, fail_on_sev):
@@ -288,7 +289,7 @@ def correlate_cmd(dast_report, sast_report, fmt, out):
         Path(out).write_text(rendered, encoding="utf-8")
         err.print(f"[green]Wrote correlation report to {out}[/green]")
     else:
-        console.print(rendered) if fmt in ("md", "markdown") else click.echo(rendered)
+        _print_report(rendered) if fmt in ("md", "markdown") else click.echo(rendered)
 
     err.print(
         f"[bold]{len(result.correlated)} correlated[/bold], "
@@ -318,7 +319,7 @@ def gate_cmd(report, accepted_risk, baseline, fail_on_sev, fmt, out):
         Path(out).write_text(rendered, encoding="utf-8")
         err.print(f"[green]Wrote {len(findings)} findings to {out}[/green]")
     else:
-        console.print(rendered) if fmt in ("md", "markdown") else click.echo(rendered)
+        _print_report(rendered) if fmt in ("md", "markdown") else click.echo(rendered)
 
     _print_summary(findings, target or None)
     if fail_on_sev and fail_on(findings, fail_on_sev):
@@ -326,6 +327,15 @@ def gate_cmd(report, accepted_risk, baseline, fail_on_sev, fmt, out):
 
 
 # --- helpers ----------------------------------------------------------
+
+def _print_report(text: str) -> None:
+    """Print a rendered report to the terminal, literally.
+
+    Reports carry text from the scanned target or source tree, so Rich markup
+    stays off and control characters (ANSI/OSC escapes) are shown escaped.
+    """
+    console.print(terminal_safe(text), markup=False, highlight=False)
+
 
 def _print_summary(findings: list[Finding], target: Optional[str]) -> None:
     counts: dict[str, int] = {}
@@ -348,11 +358,11 @@ def _print_eval(r) -> None:
     if r.missed:
         err.print("[yellow]Missed (false negatives):[/yellow]")
         for m in r.missed:
-            err.print(f"  - {m['id']}: {m['endpoint']} ({m['check']})")
+            err.print(escape(one_line(f"  - {m['id']}: {m['endpoint']} ({m['check']})")))
     if r.unexpected:
         err.print("[yellow]Unexpected findings (not in ground truth):[/yellow]")
         for u in r.unexpected:
-            err.print(f"  - {u}")
+            err.print(escape(one_line(f"  - {u}")))
 
 
 def _apply_filters(findings: list[Finding], *, accepted_risk, baseline) -> list[Finding]:
